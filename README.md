@@ -24,11 +24,12 @@ The implemented React client uses React (not Vue) and talks to the API at `/api`
    ```powershell
    $env:DB_USERNAME = "yonder"
    $env:DB_PASSWORD = "choose-a-local-password"
+   $env:GOOGLE_PLACES_API_KEY = "your-google-places-server-key"
    Set-Location backend/app
    .\mvnw.cmd spring-boot:run
    ```
 
-   The API runs on port `8080`; Flyway creates and evolves the schema on startup. Set `DB_URL`, `FRONTEND_ORIGIN`, `SESSION_COOKIE_SECURE`, and `SESSION_COOKIE_SAME_SITE` when using different local or deployed values. Do not use development cookie settings in production.
+   The API runs on port `8080`; Flyway creates and evolves the schema on startup. The Places key is required for Google-backed Discover listings. Set `DB_URL`, `FRONTEND_ORIGIN`, `SESSION_COOKIE_SECURE`, and `SESSION_COOKIE_SAME_SITE` when using different local or deployed values. Do not use development cookie settings in production.
 
    To create a fictional demo account and Baguio sample trip, start the backend with the development profile:
 
@@ -51,13 +52,15 @@ The implemented React client uses React (not Vue) and talks to the API at `/api`
 
 ## Google Maps
 
-The map and location previews use the Google Maps JavaScript API. Enable it in your Google Cloud project, attach billing, and restrict the browser key to your site's referrers (include `http://localhost:8443/*` for local development). Add the key to `frontend/.env.local`:
+The map and location previews use the Google Maps JavaScript API. Discover's nearby listings use the Google Places API (New) through the backend. Enable both APIs in your Google Cloud project and attach billing. Restrict the browser key to your site's referrers (include `http://localhost:8443/*` for local development). Add the browser key to `frontend/.env.local`:
 
 ```dotenv
 VITE_GOOGLE_MAPS_API_KEY=your-google-maps-browser-key
 ```
 
-Restart Vite after changing the environment file. Vite exposes this browser key to the client, so protect it with Google Cloud API and website restrictions; do not commit `.env.local`.
+Restart Vite after changing the environment file. Vite exposes this browser key to the client, so restrict it to the Maps JavaScript API and your website referrers; do not commit `.env.local`.
+
+Use a separate Places key that stays on the server. Configure it as `GOOGLE_PLACES_API_KEY` in the backend environment, and restrict it to the Places API (New) and the backend's outbound IP address where supported. Do not reuse the browser key, add the Places key to frontend environment variables, or commit it. Discover still shows Wikivoyage suggestions when Google Places is not configured or temporarily unavailable.
 
 ## API
 

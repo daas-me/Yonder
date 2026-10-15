@@ -15,6 +15,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.yonder.app.places.service.PlacesUnavailableException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(ApiExceptionHandler.class);
@@ -44,6 +46,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     ResponseEntity<ApiError> conflict(ConflictException exception) {
         return response(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(PlacesUnavailableException.class)
+    ResponseEntity<ApiError> placesUnavailable(PlacesUnavailableException exception) {
+        logger.warn("Google Places request failed", exception);
+        return response(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), Map.of());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

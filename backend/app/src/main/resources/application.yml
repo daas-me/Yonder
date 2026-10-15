@@ -30,3 +30,5 @@ yonder:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:8443}
   storage:
     photos-directory: ${PHOTO_STORAGE_DIR:./data/photos}
+  google:
+    places-api-key: ${GOOGLE_PLACES_API_KEY:}
