@@ -1,10 +1,10 @@
-import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, sortActs, type Trip, uid } from '../../shared'
+import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, planned as plannedCost, sortActs, type Trip, uid } from '../../shared'
 
 const r2 = (v: string) => { const n = Math.round(Math.max(0, Number(v) || 0) * 100) / 100; return Math.min(n, 9999999999.99) }
 
 export function budgetStats(t: Trip) {
   const ex = t.extras ?? []
-  const actEst = t.activities.reduce((s, a) => s + a.cost, 0)
+  const actEst = t.activities.reduce((s, a) => s + plannedCost(a), 0)
   const miscEst = ex.reduce((s, e) => s + e.est, 0)
   const actAct = t.activities.reduce((s, a) => s + (a.actual ?? 0), 0)
   const miscAct = ex.reduce((s, e) => s + (e.actual ?? 0), 0)
@@ -22,9 +22,9 @@ export function ExtrasEditor({ items, onChange, readOnly, dense }: { items: Extr
       {items.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink/50">
-              <th className="px-2 py-1 font-semibold">Item</th><th className="px-2 py-1 font-semibold">Type</th>
-              <th className="px-2 py-1 text-right font-semibold">Budgeted</th><th className="px-2 py-1 text-right font-semibold">Actual</th><th className="w-8" />
+            <thead><tr className="text-left text-xs text-ink/55">
+              <th className="px-2 py-1 font-medium">Item</th><th className="px-2 py-1 font-medium">Type</th>
+              <th className="px-2 py-1 text-right font-medium">Budgeted</th><th className="px-2 py-1 text-right font-medium">Actual</th><th className="w-8" />
             </tr></thead>
             <tbody>
               {items.map(x => (
@@ -86,7 +86,7 @@ export function LimitBar({ t }: { t: Trip }) {
     <div>
       <div className="relative h-3 overflow-hidden rounded-full bg-moss">
         <div className="absolute inset-y-0 left-0 rounded-full bg-pine/35" style={{ width: pct(s.planned) }} />
-        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct(s.actual), background: s.actual > s.limit ? '#c8623d' : '#2f5d4e' }} />
+        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct(s.actual), background: s.actual > s.limit ? '#ec6a3c' : '#17675b' }} />
       </div>
       <div className="mt-1 flex justify-between text-[11px] text-ink/50"><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-pine" />Spent · <span className="mr-1 inline-block h-2 w-2 rounded-full bg-pine/35" />Planned</span><span>Limit {php(s.limit)}</span></div>
     </div>
@@ -107,7 +107,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
   const extras = trip.extras ?? []
   const cats = (Object.keys(CATS) as Cat[]).map(c => {
     const a = acts.filter(x => catOf(x) === c), e = extras.filter(x => x.category === c)
-    return { c, est: a.reduce((s, x) => s + x.cost, 0) + e.reduce((s, x) => s + x.est, 0), act: a.reduce((s, x) => s + (x.actual ?? 0), 0) + e.reduce((s, x) => s + (x.actual ?? 0), 0), n: a.length + e.length }
+    return { c, est: a.reduce((s, x) => s + plannedCost(x), 0) + e.reduce((s, x) => s + x.est, 0), act: a.reduce((s, x) => s + (x.actual ?? 0), 0) + e.reduce((s, x) => s + (x.actual ?? 0), 0), n: a.length + e.length }
   }).filter(x => x.n)
 
   const csv = () => {
@@ -123,7 +123,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onClick={onClose}>
-      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-card shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
           <div><h3 className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in PHP</p></div>
           <div className="flex gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost px-3" aria-label="Close" onClick={onClose}>✕</button></div>
@@ -141,7 +141,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
                 {days.map((d, i) => {
                   const da = acts.filter(a => a.date === d)
                   if (!da.length) return null
-                  const de = da.reduce((s, a) => s + a.cost, 0), dl = da.filter(a => a.actual != null), dv = dl.reduce((s, a) => s + a.actual!, 0)
+                  const de = da.reduce((s, a) => s + plannedCost(a), 0), dl = da.filter(a => a.actual != null), dv = dl.reduce((s, a) => s + a.actual!, 0)
                   return (
                     <tbody key={d} className="border-t border-line">
                       {da.map(a => (
@@ -149,16 +149,16 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
                           <td className="whitespace-nowrap px-3 py-2 text-ink/60">Day {i + 1} · {fmtTime(a.time)}</td>
                           <td className="px-3 py-2"><div className="font-medium">{a.title}</div><div className="text-xs text-ink/50">{a.location}</div></td>
                           <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5 text-xs"><span className="h-2 w-2 rounded-full" style={{ background: CATS[catOf(a)].color }} />{CATS[catOf(a)].label}</span></td>
-                          <td className="px-3 py-2 text-right tabular-nums">{num(a.cost)}</td>
+                          <td className={`px-3 py-2 text-right tabular-nums ${a.status === 'cancelled' ? 'text-ink/40 line-through' : ''}`}>{num(a.cost)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{a.actual != null ? num(a.actual) : <span className="text-ink/30">—</span>}</td>
-                          {varCell(a.cost, a.actual)}
+                          {varCell(plannedCost(a), a.actual)}
                         </tr>
                       ))}
                       <tr className="bg-moss/40 text-xs font-semibold">
                         <td className="px-3 py-1.5" colSpan={3}>Day {i + 1} subtotal · {fmt(d, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{num(de)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{dl.length ? num(dv) : '—'}</td>
-                        {dl.length ? varCell(dl.reduce((s, a) => s + a.cost, 0), dv) : <td />}
+                        {dl.length ? varCell(dl.reduce((s, a) => s + plannedCost(a), 0), dv) : <td />}
                       </tr>
                     </tbody>
                   )

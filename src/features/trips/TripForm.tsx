@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { resizeImage } from '../../services'
-import { type Extra, Field, Modal, php, THEMES, type Trip } from '../../shared'
+import { type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip } from '../../shared'
 import { ExtrasEditor } from '../budget'
 
 /* ---------------- Trip form ---------------- */
@@ -24,7 +24,7 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
     if (!Object.keys(er).length) onSave({ ...f, name: f.name.trim(), destination: f.destination.trim(), budget: f.budget ? Number(f.budget) : undefined, tagline: f.tagline.trim().slice(0, 80), extras: extras.map(x => ({ ...x, label: x.label.trim() })) })
   }
   return (
-    <Modal title={trip ? 'Edit trip' : 'Design a new trip'} onClose={onClose}>
+    <Modal title={trip ? 'Edit trip' : 'Design a new trip'} onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
         <Field label="Trip name" error={err.name}><input className="input" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Summer in Siargao" /></Field>
         <Field label="Destination" error={err.destination}><input className="input" value={f.destination} onChange={e => setF({ ...f, destination: e.target.value })} placeholder="General Luna, Siargao" /></Field>
@@ -35,8 +35,7 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
         <Field label="Tagline (optional)"><input className="input" value={f.tagline} maxLength={80} placeholder="Salt, sun and slow mornings" onChange={e => setF({ ...f, tagline: e.target.value })} /></Field>
         <Field label="Description (optional)" error={err.description}><textarea className="input" rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></Field>
 
-        <fieldset className="rounded-xl p-4 ring-1 ring-line">
-          <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-ink/60">Look & feel</legend>
+        <Section title="Look & feel" hint="Theme colour and cover used on your ticket and trip page.">
           <div className="flex items-center gap-4">
             <div className="topo relative h-20 w-32 shrink-0 overflow-hidden rounded-lg" style={{ background: f.color }}>
               {f.cover && <img src={f.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />}
@@ -50,22 +49,21 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
               </div>
             </div>
           </div>
-        </fieldset>
+        </Section>
 
-        <fieldset className="space-y-3 rounded-xl p-4 ring-1 ring-line">
-          <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-ink/60">Budget</legend>
-          <Field label="Budget limit in PHP (optional)" error={err.budget}><input className="input" inputMode="decimal" value={f.budget} placeholder="e.g. 15000, your maximum spend" onChange={e => setF({ ...f, budget: e.target.value })} /></Field>
+        <Section title="Budget">
+          <Field label="Budget limit (PHP, optional)" error={err.budget}><input className="input" inputMode="decimal" value={f.budget} placeholder="e.g. 15000, your maximum spend" onChange={e => setF({ ...f, budget: e.target.value })} /></Field>
           <div>
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/60">Miscellaneous / other spending</span>
-            <p className="mb-2 text-xs text-ink/50">Costs that aren't a scheduled activity, like insurance, tips, a SIM card or an emergency fund. Fill in Actual during or after the trip.</p>
+            <FieldLabel text="Miscellaneous spending" className="!mb-0.5" />
+            <p className="mb-2 text-xs text-ink/55">Costs that aren't a scheduled activity, like insurance, tips, a SIM card or an emergency fund. Fill in Actual during or after the trip.</p>
             <ExtrasEditor items={extras} onChange={setExtras} />
             {err.extras && <span className="mt-1 block text-xs text-clay">{err.extras}</span>}
           </div>
-          <div className="flex justify-between rounded-lg bg-moss/60 px-3 py-2 text-sm">
-            <span>Activities {php((trip?.activities ?? []).reduce((s, a) => s + a.cost, 0))} + misc {php(extras.reduce((s, x) => s + x.est, 0))}</span>
-            <b>Budget {php((trip?.activities ?? []).reduce((s, a) => s + a.cost, 0) + extras.reduce((s, x) => s + x.est, 0))}</b>
+          <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 rounded-lg bg-moss/60 px-3 py-2 text-sm">
+            <span>Activities {php((trip?.activities ?? []).reduce((s, a) => s + planned(a), 0))} + misc {php(extras.reduce((s, x) => s + x.est, 0))}</span>
+            <b>Budget {php((trip?.activities ?? []).reduce((s, a) => s + planned(a), 0) + extras.reduce((s, x) => s + x.est, 0))}</b>
           </div>
-        </fieldset>
+        </Section>
         <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary">{trip ? 'Save changes' : 'Create trip'}</button></div>
       </form>
     </Modal>

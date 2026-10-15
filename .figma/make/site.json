@@ -1,0 +1,10 @@
+{
+  "description": "Plan and organize trips effortlessly with a user-friendly itinerary application that offers personalized profiles and seamless account management.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

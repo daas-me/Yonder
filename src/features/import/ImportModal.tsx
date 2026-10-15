@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, Field, fmt, fmtTime, isoOf, Modal, php, sortActs, THEMES, type Trip, uid } from '../../shared'
+import { type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, Field, FieldLabel, fmt, fmtTime, isoOf, Modal, php, sortActs, THEMES, type Trip, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 import { extractText } from './extractText'
 import { type Draft, type Parsed, parseItinerary, SAMPLE } from './parser'
@@ -50,14 +50,14 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
       {!parsed ? (
         <div className="space-y-4">
           <label onDragOver={e => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={e => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files[0]) }}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${drag ? 'border-pine bg-moss' : 'border-line2 hover:bg-moss/50'}`}>
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center transition ${drag ? 'border-pine bg-moss' : 'border-line2 hover:bg-moss/50'}`}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-pine"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" /></svg>
             <span className="mt-3 font-semibold">{busy || 'Drop a file or click to upload'}</span>
             <span className="mt-1 text-xs text-ink/50">.txt, .docx or .pdf. Everything is read in your browser.</span>
             <input type="file" accept=".txt,.md,.docx,.pdf" className="hidden" onChange={e => onFile(e.target.files?.[0])} />
           </label>
           <div className="flex items-center gap-3 text-xs text-ink/40"><span className="h-px flex-1 bg-line" />or paste text<span className="h-px flex-1 bg-line" /></div>
-          <textarea className="input font-mono text-xs" rows={7} value={text} onChange={e => setText(e.target.value)} placeholder={'Day 1 - Nov 20\n8:00 AM Breakfast at Cafe by the Ruins - PHP 400\n10:00 AM Burnham Park - Baguio'} />
+          <textarea className="input" rows={7} value={text} onChange={e => setText(e.target.value)} placeholder={'Day 1 - Nov 20\n8:00 AM Breakfast at Cafe by the Ruins - PHP 400\n10:00 AM Burnham Park - Baguio'} />
           {err && <p className="text-sm text-clay">{err}</p>}
           <div className="flex flex-wrap justify-between gap-2">
             <button className="btn btn-ghost text-pine" onClick={() => { setText(SAMPLE); run(SAMPLE) }}>Try a sample</button>
@@ -73,13 +73,13 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
             {hasDayOnly && <Field label="Day 1 starts on"><input className="input" type="date" value={meta.start} onChange={e => setMeta({ ...meta, start: e.target.value })} /></Field>}
           </div>
           <details className="rounded-xl p-3 ring-1 ring-line" open>
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-ink/60">Budget & look</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-ink">Budget & look</summary>
             <div className="mt-3 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Budget limit (PHP, optional)"><input className="input" inputMode="decimal" placeholder="e.g. 20000" value={plan.limit} onChange={e => setPlan({ ...plan, limit: e.target.value })} /></Field>
                 <Field label="Trip color"><div className="flex flex-wrap gap-1.5 pt-1">{THEMES.map(c => <button type="button" key={c} aria-label={`Theme ${c}`} onClick={() => setPlan({ ...plan, color: c })} className={`h-7 w-7 rounded-full ring-offset-2 ring-offset-sand ${plan.color === c ? 'ring-2 ring-ink' : ''}`} style={{ background: c }} />)}</div></Field>
               </div>
-              <div><span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/60">Miscellaneous / other spending</span><ExtrasEditor items={plan.extras} onChange={x => setPlan({ ...plan, extras: x })} /></div>
+              <div><FieldLabel text="Miscellaneous spending" /><ExtrasEditor items={plan.extras} onChange={x => setPlan({ ...plan, extras: x })} /></div>
             </div>
           </details>
           {range && <p className="text-sm text-ink/60">{fmt(range.start, { month: 'long', day: 'numeric', year: 'numeric' })} – {fmt(range.end, { month: 'long', day: 'numeric', year: 'numeric' })} · budget {php(kept.reduce((s, a) => s + a.cost, 0) + plan.extras.reduce((s, x) => s + x.est, 0))}{plan.limit && +plan.limit > 0 ? ` of ${php(+plan.limit)} limit` : ''}</p>}
@@ -89,7 +89,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
               return (
                 <li key={a.id} className={`rounded-xl bg-card p-3 ring-1 ring-line ${a.keep ? '' : 'opacity-40'}`}>
                   <div className="flex items-start gap-3">
-                    <input type="checkbox" className="mt-1 h-4 w-4 accent-[#2f5d4e]" checked={a.keep} onChange={() => upd(a.id, { keep: !a.keep })} />
+                    <input type="checkbox" className="mt-1 h-4 w-4 accent-[#17675b]" checked={a.keep} onChange={() => upd(a.id, { keep: !a.keep })} />
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="font-semibold text-pine">{fmt(a.date, { weekday: 'short', month: 'short', day: 'numeric' })} · {fmtTime(a.time)}</span>

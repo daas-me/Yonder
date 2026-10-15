@@ -30,7 +30,7 @@ export default function AccountPage({ user, trips, onSave, onDeleteAccount, toas
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="font-display text-5xl font-semibold">Account</h1>
       <div className="topo flex items-center gap-5 rounded-2xl bg-pine p-6 text-white">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f2c6a0] font-display text-2xl font-semibold text-pine">{initials}</div>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e3efe9] font-display text-2xl font-semibold text-pine">{initials}</div>
         <div className="flex-1">
           <div className="font-display text-2xl">{user.name}</div>
           <div className="text-sm text-white/70">{user.email} · Traveler since {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>

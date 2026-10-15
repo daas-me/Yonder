@@ -64,11 +64,11 @@ export default function MemoriesModal({ title, subtitle, cover, memories, readOn
           <h3 className="mt-4 font-hand text-4xl leading-none">{title}</h3>
           <p className="mt-1 text-sm text-black/55">{subtitle}</p>
           <div className="mt-4 flex gap-4 text-sm text-black/60"><span><b className="font-display text-xl text-black">{photos.length}</b> photos</span><span><b className="font-display text-xl text-black">{memories.length - photos.length}</b> entries</span></div>
-          <button className="mt-5 w-full rounded-lg border border-[#2f5d4e] px-4 py-2.5 text-sm font-semibold text-[#2f5d4e] hover:bg-[#2f5d4e] hover:text-white disabled:opacity-40" disabled={!memories.length || !!busy}
+          <button className="mt-5 w-full rounded-lg border border-[#17675b] px-4 py-2.5 text-sm font-semibold text-[#17675b] hover:bg-[#17675b] hover:text-white disabled:opacity-40" disabled={!memories.length || !!busy}
             onClick={async () => { setBusy('Packing zip…'); try { await onDownload() } catch { toast('Could not build the zip') } setBusy('') }}>
             Download memories (.zip)
           </button>
-          <span className="absolute right-5 top-5 hidden h-14 w-12 rotate-3 border-2 border-dashed border-[#c8623d]/60 sm:block" />
+          <span className="absolute right-5 top-5 hidden h-14 w-12 rotate-3 border-2 border-dashed border-[#ec6a3c]/60 sm:block" />
         </div>
 
         {/* Journal */}
@@ -83,10 +83,10 @@ export default function MemoriesModal({ title, subtitle, cover, memories, readOn
                 <textarea className="w-full resize-none bg-transparent font-hand text-2xl leading-snug outline-none placeholder:text-black/30" rows={3} placeholder="What happened here? How did it feel?" value={text} onChange={e => setText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addNote() }} />
                 <div className="flex items-center justify-between gap-2">
-                  <label className="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold text-[#2f5d4e] hover:bg-black/5">
+                  <label className="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold text-[#17675b] hover:bg-black/5">
                     {busy || '+ Add photos'}<input type="file" accept="image/*" multiple className="hidden" onChange={e => { addPhotos(e.target.files); e.target.value = '' }} />
                   </label>
-                  <button className="rounded-lg bg-[#2f5d4e] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40" disabled={!text.trim()} onClick={addNote}>Save entry</button>
+                  <button className="rounded-lg bg-[#17675b] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40" disabled={!text.trim()} onClick={addNote}>Save entry</button>
                 </div>
               </div>
             )}
@@ -98,13 +98,13 @@ export default function MemoriesModal({ title, subtitle, cover, memories, readOn
             {sorted.length === 0 ? <p className="py-10 text-center font-hand text-2xl text-black/35">No memories yet. Add your first photo or story.</p> : (
               <ol className="space-y-4">
                 {sorted.map(m => (
-                  <li key={m.id} className="group border-l-2 border-[#c8623d]/40 pl-4">
+                  <li key={m.id} className="group border-l-2 border-[#ec6a3c]/40 pl-4">
                     <div className="flex items-center justify-between text-xs text-black/45">
                       <span>{new Date(m.at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {m.kind === 'photo' ? 'Photo' : 'Entry'}{m.edited ? ' · edited' : ''}</span>
                       {!readOnly && editing?.id !== m.id && (
                         <span className="flex gap-3 opacity-60 group-hover:opacity-100">
-                          {m.kind === 'note' && <button className="font-semibold text-[#2f5d4e]" onClick={() => setEditing({ id: m.id, text: m.text })}>Edit</button>}
-                          <button className="text-[#c8623d]" onClick={() => setConfirmDel(m)}>Remove</button>
+                          {m.kind === 'note' && <button className="font-semibold text-[#17675b]" onClick={() => setEditing({ id: m.id, text: m.text })}>Edit</button>}
+                          <button className="text-[#ec6a3c]" onClick={() => setConfirmDel(m)}>Remove</button>
                         </span>
                       )}
                     </div>
@@ -115,7 +115,7 @@ export default function MemoriesModal({ title, subtitle, cover, memories, readOn
                           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit(); if (e.key === 'Escape') { e.stopPropagation(); setEditing(null) } }} />
                         <div className="flex justify-end gap-2">
                           <button className="rounded px-3 py-1 text-sm text-black/60 hover:bg-black/5" onClick={() => setEditing(null)}>Cancel</button>
-                          <button className="rounded bg-[#2f5d4e] px-3 py-1 text-sm font-semibold text-white disabled:opacity-40" disabled={!editing.text.trim()} onClick={saveEdit}>Save</button>
+                          <button className="rounded bg-[#17675b] px-3 py-1 text-sm font-semibold text-white disabled:opacity-40" disabled={!editing.text.trim()} onClick={saveEdit}>Save</button>
                         </div>
                       </div>
                     ) : <p className="mt-1 whitespace-pre-wrap font-hand text-2xl leading-snug">{m.text}</p>) : (
@@ -139,7 +139,7 @@ export default function MemoriesModal({ title, subtitle, cover, memories, readOn
             <p className="mt-2 text-sm text-black/60">This memory will be permanently deleted{confirmDel.kind === 'photo' ? ' from this browser' : ''}. This can't be undone.</p>
             <div className="mt-5 flex justify-end gap-2">
               <button className="rounded-lg px-4 py-2 text-sm font-semibold hover:bg-black/5" onClick={() => setConfirmDel(null)}>Cancel</button>
-              <button className="rounded-lg bg-[#c8623d] px-4 py-2 text-sm font-semibold text-white" onClick={() => { remove(confirmDel); setConfirmDel(null); toast('Memory removed') }}>Remove</button>
+              <button className="rounded-lg bg-[#ec6a3c] px-4 py-2 text-sm font-semibold text-white" onClick={() => { remove(confirmDel); setConfirmDel(null); toast('Memory removed') }}>Remove</button>
             </div>
           </div>
         </div>

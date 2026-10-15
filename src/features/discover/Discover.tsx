@@ -76,13 +76,13 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
         <select className="input w-auto" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
           <option value="relevance">Most detailed first</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option>
         </select>
-        <label className="flex items-center gap-2 text-sm text-ink/70"><input type="checkbox" className="accent-[#2f5d4e]" checked={withPrice} onChange={e => setWithPrice(e.target.checked)} />With price only</label>
+        <label className="flex items-center gap-2 text-sm text-ink/70"><input type="checkbox" className="accent-[#17675b]" checked={withPrice} onChange={e => setWithPrice(e.target.checked)} />With price only</label>
       </div>
 
       {!data ? (
         <div className="grid gap-4 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-44 animate-pulse rounded-2xl bg-card ring-1 ring-line" />)}</div>
       ) : !data.places.length ? (
-        <div className="rounded-2xl border-2 border-dashed border-line2 p-10 text-center text-sm text-ink/60">
+        <div className="rounded-2xl border border-dashed border-line2 p-10 text-center text-sm text-ink/60">
           No places found for "{trip.destination}". Try a more specific destination, like "Baguio, Benguet" or "El Nido, Palawan".
           {data.errors.length > 0 && <div className="mt-2 text-clay">Couldn't reach: {data.errors.join(', ')}.</div>}
         </div>

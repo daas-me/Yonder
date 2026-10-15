@@ -18,9 +18,9 @@ src/
 ├─ app/
 │  └─ App.tsx                  # App shell: session, routing state, header, toasts, persistence
 ├─ shared/                     # Used by every feature, no feature dependencies
-│  ├─ model.ts                 # Types: User, Trip, Activity, Extra, Memory, Check, categories, themes
-│  ├─ utils.ts                 # Money/date helpers, totals, sorting, day lists
-│  ├─ ui.tsx                   # Logo, Field, Modal, Confirm
+│  ├─ model.ts                 # Types: User, Trip, Activity, Extra, Memory, Check, categories, themes, activity status
+│  ├─ utils.ts                 # Money/date helpers, totals (cancelled excluded), sorting, day lists
+│  ├─ ui.tsx                   # Logo, Tag, Field, FieldLabel, Section, Modal (normal/wide), Confirm
 │  └─ sampleData.ts            # Demo trip
 ├─ services/                   # External APIs and browser utilities
 │  ├─ geocode.ts               # Photon / Nominatim place lookup
@@ -50,16 +50,16 @@ src/
 | ID | Requirement | Status | Notes / gap |
 |---|---|---|---|
 | FR-01 | Create trip | [x] | Plus color, cover, tagline, budget limit, misc spending |
-| FR-02 | Read trips | [x] | Search + upcoming/past filter |
+| FR-02 | Read trips | [x] | Search + upcoming/past filter; list or grid ticket layout (remembered per browser) |
 | FR-03 | View trip / 404 | [~] | Friendly "not found" exists; no real HTTP 404 (no API) |
 | FR-04 | Update trip, range must contain activities | [x] | Checked in the browser only |
 | FR-05 | Delete trip + activities | [x] | Confirmation included; needs DB cascade (BR-04) |
 | FR-06 | Create activity | [x] | Date-in-range, cost ≥ 0, 2 decimals |
 | FR-07 | Read activities of a trip | [x] | |
-| FR-08 | Update activity | [x] | |
+| FR-08 | Update activity | [x] | Also inline on the timeline: log actual spending and set status (On time / Delayed / Cancelled) |
 | FR-09 | Delete activity with confirmation | [x] | |
 | FR-10 | Sort by date, time, ID | [x] | `sortActs()` |
-| FR-11 | Budget total (PHP 0.00 when empty) | [x] | Now also includes misc spending, so it differs from the SRS definition (see §4) |
+| FR-11 | Budget total (PHP 0.00 when empty) | [x] | Includes misc spending and **excludes cancelled activities** (their cost returns to headroom), so it differs from the SRS definition (see §4) |
 | FR-12 | Frontend + **backend** validation | [~] | Frontend only. **Backend validation missing (P0)** |
 | FR-13 | Status & error feedback | [~] | Toasts and empty states exist. No server/network error handling for CRUD (no API) |
 | FR-14 | Trip overview | [x] | |
@@ -84,9 +84,9 @@ src/
 The prototype now goes beyond the approved V1 scope. The proposal, SRS and SDD must be **updated or annotated**, otherwise the documentation contradicts the system:
 
 - [ ] **Login / registration / account settings.** The proposal lists these as *out of scope / Phase 2*. Update §1.5, the deployment boundary (§6.3) and the use cases.
-- [ ] **New entities:** `Extra` (misc spending), `Memory` (journal), `Check` (packing list), plus trip `color` / `cover` / `tagline` / `budget` and activity `actual` / `image` / `lat` / `lon`. Update the class diagram and ERD.
-- [ ] **Budget definition.** FR-11 / BR-06 say the total is the sum of activity estimates. Now Budget = activities + misc. Restate FR-11 and add requirements for budget limit, actual spending and misc.
-- [ ] **New features need their own FRs, use cases and acceptance tests:** import (txt/docx/pdf), Discover suggestions, Tripboard, memories journal + ZIP, map, weather, share link, template copy, print/PDF, CSV export, dark mode.
+- [ ] **New entities:** `Extra` (misc spending), `Memory` (journal), `Check` (packing list), plus trip `color` / `cover` / `tagline` / `budget` and activity `actual` / `status` / `image` / `lat` / `lon`. Update the class diagram and ERD.
+- [ ] **Budget definition.** FR-11 / BR-06 say the total is the sum of activity estimates. Now Budget = non-cancelled activities + misc; actual spending still counts logged amounts on cancelled activities (e.g. non-refundable deposits). Restate FR-11 and add requirements for budget limit, actual spending and misc.
+- [ ] **New features need their own FRs, use cases and acceptance tests:** import (txt/docx/pdf), Discover suggestions, Tripboard, memories journal + ZIP, map, weather, share link, template copy, print/PDF, CSV export, dark mode, activity status tracking, list/grid trip view.
 - [ ] **Third-party services** (Wikivoyage, OpenStreetMap/Overpass, Photon, CARTO tiles, Open-Meteo). Add them to the architecture diagram and §2.1 assumptions. The SRS currently says "internet access is not needed after setup", which is no longer true for these features.
 - [ ] **Diagrams to redo:** Level 1 DFD (new processes: Import, Discover, Journal, Budget), use case, class, ERD, sequence and activity diagrams.
 
@@ -106,7 +106,7 @@ The prototype now goes beyond the approved V1 scope. The proposal, SRS and SDD m
 |---|---|---|
 | `users` | id, name, email (unique), password_hash, home_city, created_at | Only if login stays in scope |
 | `trips` | id, user_id FK, name(120), destination(120), start_date, end_date, description(1000), budget_limit DECIMAL(12,2) NULL, color, tagline, cover_url, lat, lon | CHECK start ≤ end |
-| `activities` | id, trip_id FK **ON DELETE CASCADE**, title(120), activity_date, start_time, location(160), estimated_cost DECIMAL(12,2) ≥ 0, actual_cost NULL, category, notes(1000), image_url, lat, lon | Index (trip_id, activity_date, start_time, id) |
+| `activities` | id, trip_id FK **ON DELETE CASCADE**, title(120), activity_date, start_time, location(160), estimated_cost DECIMAL(12,2) ≥ 0, actual_cost NULL, status ENUM('ON_TIME','DELAYED','CANCELLED') NULL, category, notes(1000), image_url, lat, lon | Index (trip_id, activity_date, start_time, id) |
 | `trip_extras` | id, trip_id FK cascade, label, category, estimated_cost, actual_cost | Misc / other spending |
 | `memories` | id, trip_id FK cascade, activity_id FK NULL cascade, kind (PHOTO/NOTE), text, file_url, created_at, edited_at | Photos stored as files, not BLOBs |
 | `checklist_items` | id, trip_id FK cascade, text, done | Packing list |
@@ -178,6 +178,9 @@ GET               /api/discover?destination=...   (optional server-side proxy + 
 
 ### Budget
 - [x] Budget, Budget limit, Actual spending, Misc/Other, breakdown table, CSV export
+- [x] Per-activity actual spending logged inline on the timeline, with over/under variance
+- [x] Activity status (On time / Delayed / Cancelled) tints the whole card; cancelled costs are struck through and freed into headroom
+- [ ] CSV export: add a status column so cancelled rows are identifiable
 - [ ] Multi-currency (the SRS assumes PHP only; keep it, or add currency + exchange rates)
 - [ ] Split costs between travelers (needs multi-user, Phase 2)
 
@@ -187,10 +190,21 @@ GET               /api/discover?destination=...   (optional server-side proxy + 
 
 ---
 
+### UI consistency
+- [x] Ticket typography unified (no handwritten/monospace mix in values)
+- [x] Modals use a solid surface instead of glass, so text stays legible
+- [x] One form label system: sentence-case `FieldLabel`, muted "optional"/unit hints, `Section` headings replace fieldset legends
+- [x] Inputs and placeholders inherit the app font; import textarea no longer monospace
+- [x] Trip form opens as a wide modal; sections no longer overflow
+- [x] Timeline connector line made visible
+- [ ] Manual visual pass of every modal at 375 px and in dark mode
+
+---
+
 ## 8. Testing (P0: NFR-08, §5.2 acceptance scenarios)
 
 - [ ] **Backend:** JUnit 5 service tests for BR-01…BR-05; MockMvc controller tests for status codes and validation messages; repository test for cascade delete
-- [ ] **Frontend:** Vitest + React Testing Library for forms/validation; unit tests for `features/import/parser.ts`, `features/discover/sources.ts` (`parsePrice`), `shared/utils.ts` totals
+- [ ] **Frontend:** Vitest + React Testing Library for forms/validation; unit tests for `features/import/parser.ts`, `features/discover/sources.ts` (`parsePrice`), `shared/utils.ts` totals (including cancelled-activity exclusion)
 - [ ] **End-to-end:** Playwright for AT-01…AT-07 (create trip, add activity, PHP 250.00 + 300.50 = 550.50, reversed dates rejected, cascade delete, 404 page, range change rejected)
 - [ ] Postman/Bruno collection for every endpoint with saved example responses
 - [ ] Manual test matrix with screenshots (Chrome + Edge, 375 px / 768 px / 1440 px, light + dark)

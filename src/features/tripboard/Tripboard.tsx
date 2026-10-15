@@ -16,12 +16,12 @@ export default function Tripboard({ trip, days, weather, readOnly, memCount, onO
             <div className="cork rounded-3xl p-5 sm:p-8">
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="max-w-md font-hand text-2xl leading-tight text-white drop-shadow">Tap a postcard to open its journal: add photos and stories while you travel.</p>
-                <button className="no-print rounded-lg bg-[#fffdf6] px-4 py-2 text-sm font-semibold text-[#2f5d4e] shadow-md hover:bg-white disabled:opacity-50" disabled={!memCount}
+                <button className="no-print rounded-lg bg-[#fffdf6] px-4 py-2 text-sm font-semibold text-[#17675b] shadow-md hover:bg-white disabled:opacity-50" disabled={!memCount}
                   onClick={() => downloadMemories(trip).catch(() => toast('Could not build the zip'))}>Download all memories{memCount ? ` (${memCount})` : ''}</button>
               </div>
               {(
                 <div role="button" tabIndex={0} onClick={() => onOpenJournal('trip')} className="relative mx-auto mb-10 w-64 -rotate-1 cursor-pointer bg-[#fffdf6] p-3 pb-4 text-[#2b2b2b] shadow-xl transition hover:rotate-0 hover:scale-[1.03]">
-                  <Pin color="#2f5d4e" />
+                  <Pin color="#17675b" />
                   {trip.geo ? <MapSnap lat={trip.geo.lat} lon={trip.geo.lon} zoom={11} height={140} /> : <div className="h-[140px] bg-moss" />}
                   {!!trip.memories?.length && <Stamp n={trip.memories.length} />}
                   <div className="mt-2 text-center font-hand text-2xl leading-none">{trip.destination.split(',')[0]}</div>
@@ -50,13 +50,13 @@ export default function Tripboard({ trip, days, weather, readOnly, memCount, onO
                               <span className="shrink-0 text-xs font-semibold text-black/50">{fmtTime(a.time)}</span>
                             </div>
                             <div className="text-xs text-black/60">{a.location} · {php(a.cost)}</div>
-                            {a.notes && <div className="mt-1 font-hand text-lg leading-tight text-[#3d5a80]">{a.notes}</div>}
+                            {a.notes && <div className="mt-1 font-hand text-lg leading-tight text-[#2f6f9f]">{a.notes}</div>}
                             {!readOnly && (
                               <div onClick={e => e.stopPropagation()} className="no-print mt-3 flex flex-wrap gap-1 border-t border-dashed border-black/15 pt-2 text-xs">
-                                <label className="cursor-pointer rounded px-2 py-1 font-semibold text-[#2f5d4e] hover:bg-black/5">{a.image ? 'Change photo' : 'Attach photo'}<input type="file" accept="image/*" className="hidden" onChange={e => onAttach(a, e.target.files?.[0])} /></label>
-                                {a.lat == null && <button className="rounded px-2 py-1 font-semibold text-[#2f5d4e] hover:bg-black/5" onClick={async () => toast((await onLocate(a)) ? 'Map snapshot added' : 'Location not found')}>Map snapshot</button>}
-                                {a.image && <button className="rounded px-2 py-1 text-[#c8623d] hover:bg-black/5" onClick={() => onPatch(a.id, { image: undefined })}>Remove photo</button>}
-                                {a.lat != null && <button className="rounded px-2 py-1 text-[#c8623d] hover:bg-black/5" onClick={() => onPatch(a.id, { lat: undefined, lon: undefined })}>Remove map</button>}
+                                <label className="cursor-pointer rounded px-2 py-1 font-semibold text-[#17675b] hover:bg-black/5">{a.image ? 'Change photo' : 'Attach photo'}<input type="file" accept="image/*" className="hidden" onChange={e => onAttach(a, e.target.files?.[0])} /></label>
+                                {a.lat == null && <button className="rounded px-2 py-1 font-semibold text-[#17675b] hover:bg-black/5" onClick={async () => toast((await onLocate(a)) ? 'Map snapshot added' : 'Location not found')}>Map snapshot</button>}
+                                {a.image && <button className="rounded px-2 py-1 text-[#ec6a3c] hover:bg-black/5" onClick={() => onPatch(a.id, { image: undefined })}>Remove photo</button>}
+                                {a.lat != null && <button className="rounded px-2 py-1 text-[#ec6a3c] hover:bg-black/5" onClick={() => onPatch(a.id, { lat: undefined, lon: undefined })}>Remove map</button>}
                               </div>
                             )}
                           </div>
@@ -71,7 +71,7 @@ export default function Tripboard({ trip, days, weather, readOnly, memCount, onO
 }
 
 function Stamp({ n }: { n: number }) {
-  return <span className="absolute right-2 top-2 z-10 rotate-6 rounded-sm border-2 border-[#c8623d] bg-[#fffdf6]/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#c8623d]">{n} {n === 1 ? 'memory' : 'memories'}</span>
+  return <span className="absolute right-2 top-2 z-10 rotate-6 rounded-sm border-2 border-[#ec6a3c] bg-[#fffdf6]/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#ec6a3c]">{n} {n === 1 ? 'memory' : 'memories'}</span>
 }
 
 function Pin({ color }: { color: string }) {

@@ -14,7 +14,7 @@ export default function MapView({ acts, center }: { acts: (Activity & { n: numbe
       const icon = L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 14], html: `<div style="background:${CATS[catOf(a)].color};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 12px Inter;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)">${a.n}</div>` })
       L.marker([a.lat!, a.lon!], { icon }).addTo(map).bindPopup(`<b>${a.title.replace(/</g, '&lt;')}</b><br>${a.location.replace(/</g, '&lt;')}`)
     })
-    if (pts.length > 1) L.polyline(pts.map(a => [a.lat!, a.lon!] as [number, number]), { color: '#2f5d4e', weight: 3, dashArray: '6 6' }).addTo(map)
+    if (pts.length > 1) L.polyline(pts.map(a => [a.lat!, a.lon!] as [number, number]), { color: '#17675b', weight: 3, dashArray: '6 6' }).addTo(map)
     if (pts.length) map.fitBounds(L.latLngBounds(pts.map(a => [a.lat!, a.lon!] as [number, number])).pad(0.25), { maxZoom: 15 })
     else map.setView(center ? [center.lat, center.lon] : [12.88, 121.77], center ? 12 : 5)
     return () => { map.remove() }

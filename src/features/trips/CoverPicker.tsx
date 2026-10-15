@@ -47,7 +47,7 @@ export default function CoverPicker({ trip, onSave, onClose }: { trip: Trip; onS
         {cover && <button className="btn btn-danger ring-1 ring-line" onClick={() => setCover(undefined)}>Remove photo</button>}
       </div>
 
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink/60">From this trip</div>
+      <div className="mb-2 text-[13px] font-medium text-ink/80">From this trip</div>
       {pool.length ? (
         <div className="mb-5 grid max-h-52 grid-cols-4 gap-2 overflow-auto">
           {pool.map(p => (
@@ -59,7 +59,7 @@ export default function CoverPicker({ trip, onSave, onClose }: { trip: Trip; onS
         </div>
       ) : <p className="mb-5 rounded-lg bg-moss/60 p-3 text-sm text-ink/60">No trip photos yet. Photos you attach to Tripboard postcards or add to the journal will show up here.</p>}
 
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink/60">Theme color</div>
+      <div className="mb-2 text-[13px] font-medium text-ink/80">Theme colour</div>
       <div className="mb-6 flex flex-wrap gap-1.5">{THEMES.map(c => <button key={c} aria-label={`Theme ${c}`} onClick={() => setColor(c)} className={`h-8 w-8 rounded-full ring-offset-2 ring-offset-sand ${color === c ? 'ring-2 ring-ink' : ''}`} style={{ background: c }} />)}</div>
 
       <div className="flex justify-end gap-2"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => onSave({ cover, color })}>Save cover</button></div>
