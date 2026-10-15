@@ -6,7 +6,6 @@ Yonder is a React + TypeScript travel planner with a Spring Boot REST API and My
 
 - `frontend/` — Vite application. Shared UI/types/utilities live in `src/shared`, external API clients in `src/services`, and screens are grouped by feature under `src/features`.
 - `backend/app/` — Java 21 Maven application. Backend code is split by feature into `auth/` and `trip/`; each has controller, DTO, service, entity, and repository packages as appropriate. Cross-cutting security and API error handling live in `config/` and `common/`.
-- `docs/COMPLETION_CHECKLIST.md` — product requirements, implementation status, and remaining work.
 
 The implemented React client uses React (not Vue) and talks to the API at `/api`. Vite proxies that path to `http://localhost:8080` during development.
 
@@ -90,5 +89,3 @@ corepack pnpm run build
 ```
 
 The frontend dev server can be checked at `http://localhost:8443/`. API-backed features require the Spring Boot API and MySQL steps above.
-
-For the current requirements, implemented features, and outstanding product/deployment work, see [the completion checklist](docs/COMPLETION_CHECKLIST.md).
