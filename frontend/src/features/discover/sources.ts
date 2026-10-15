@@ -1,4 +1,4 @@
-import { type Cat, type Check, php } from '../../shared'
+import { type Cat, type Check } from '../../shared'
 
 export type Kind = 'stay' | 'eat' | 'tour' | 'transport' | 'shop'
 export const KINDS: Record<Kind, { label: string; cat: Cat; time: string }> = {
@@ -10,9 +10,9 @@ export const KINDS: Record<Kind, { label: string; cat: Cat; time: string }> = {
 }
 
 export type Place = {
-  id: string; name: string; kind: Kind; type: string; source: 'Wikivoyage' | 'OpenStreetMap'
+  id: string; name: string; kind: Kind; type: string; source: 'Wikivoyage' | 'Google Places'
   price?: string; priceLow?: number; priceHigh?: number; priceIsEstimate?: boolean
-  amenities: string[]; description?: string; address?: string; hours?: string; phone?: string; url?: string; lat?: number; lon?: number; ref?: string
+  amenities: string[]; description?: string; address?: string; hours?: string; phone?: string; url?: string; lat?: number; lon?: number; rating?: number; reviewCount?: number; ref?: string
 }
 
 /* ---------- Wikivoyage: community travel guide listings with real guide prices ---------- */
@@ -85,70 +85,4 @@ export async function fromWikivoyage(dest: string): Promise<{ places: Place[]; p
     })
   }
   return { places, page: title }
-}
-
-/* ---------- OpenStreetMap (Overpass): real nearby places with tagged amenities ---------- */
-const EST: Record<string, [number, number, string]> = {
-  hostel: [500, 1200, '/night'], guest_house: [1000, 2500, '/night'], motel: [1200, 2500, '/night'], apartment: [1800, 4500, '/night'],
-  chalet: [2500, 6000, '/night'], resort: [3500, 12000, '/night'], hotel: [2000, 5000, '/night'],
-  restaurant: [300, 800, '/person'], cafe: [150, 400, '/person'], fast_food: [150, 300, '/person'], bar: [300, 900, '/person'], pub: [300, 900, '/person'],
-  attraction: [0, 500, ' entry'], museum: [50, 300, ' entry'], viewpoint: [0, 100, ' entry'], zoo: [150, 600, ' entry'], theme_park: [500, 2000, ' entry'],
-  travel_agency: [800, 3500, ' per tour'], tour: [800, 3500, ' per tour'],
-  bus_station: [50, 800, ' fare'], ferry_terminal: [150, 1500, ' fare'], car_rental: [1500, 3500, '/day'], taxi: [100, 500, ' ride'], airport: [2000, 8000, ' fare'],
-  mall: [0, 0, ''], marketplace: [0, 0, ''], gift: [0, 0, ''],
-}
-const HOTEL_STARS: Record<string, [number, number]> = { '1': [1200, 2200], '2': [1500, 3000], '3': [2500, 5000], '4': [4500, 9000], '5': [8000, 20000] }
-function osmAmenities(t: Record<string, string>) {
-  const a: string[] = []
-  const yes = (k: string) => t[k] && t[k] !== 'no'
-  if (t.stars) a.push(`${t.stars}-star`)
-  if (yes('internet_access')) a.push(t['internet_access:fee'] === 'no' || t.internet_access === 'wlan' ? 'Free Wi-Fi' : 'Wi-Fi')
-  if (yes('air_conditioning')) a.push('Air-con')
-  if (yes('swimming_pool') || t.leisure === 'swimming_pool') a.push('Pool')
-  if (t.rooms) a.push(`${t.rooms} rooms`)
-  if (t.cuisine) a.push(t.cuisine.split(';').slice(0, 2).map(c => c.replace(/_/g, ' ')).join(', '))
-  if (yes('outdoor_seating')) a.push('Outdoor seating')
-  if (yes('takeaway')) a.push('Takeaway')
-  if (yes('delivery')) a.push('Delivery')
-  if (t['diet:vegetarian'] && t['diet:vegetarian'] !== 'no') a.push('Vegetarian options')
-  if (t.wheelchair === 'yes') a.push('Wheelchair accessible')
-  if (t['payment:credit_cards'] === 'yes' || t['payment:cards'] === 'yes') a.push('Cards accepted')
-  if (yes('parking')) a.push('Parking')
-  if (t.fee === 'no') a.push('Free entry')
-  return a
-}
-export async function fromOSM(lat: number, lon: number): Promise<Place[]> {
-  const r = 6000
-  const q = `[out:json][timeout:25];(
-    nwr(around:${r},${lat},${lon})["tourism"~"^(hotel|hostel|guest_house|motel|resort|apartment|chalet)$"]["name"];
-    nwr(around:${r},${lat},${lon})["leisure"="resort"]["name"];
-    nwr(around:${r},${lat},${lon})["amenity"~"^(restaurant|cafe|fast_food|bar|pub)$"]["name"];
-    nwr(around:${r},${lat},${lon})["tourism"~"^(attraction|museum|viewpoint|zoo|theme_park)$"]["name"];
-    nwr(around:${r},${lat},${lon})["shop"~"^(travel_agency|mall|gift)$"]["name"];
-    nwr(around:${r},${lat},${lon})["office"="travel_agent"]["name"];
-    nwr(around:${r},${lat},${lon})["amenity"~"^(bus_station|ferry_terminal|car_rental|taxi|marketplace)$"]["name"];
-    nwr(around:${r * 4},${lat},${lon})["aeroway"="aerodrome"]["iata"]["name"];
-  );out center tags 250;`
-  const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
-  if (!res.ok) throw new Error('overpass')
-  const j = await res.json()
-  return (j.elements ?? []).map((e: { id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags: Record<string, string> }): Place => {
-    const t = e.tags
-    const type = t.tourism || (t.leisure === 'resort' ? 'resort' : '') || t.amenity || (t.office ? 'tour' : '') || t.shop || (t.aeroway ? 'airport' : '') || 'place'
-    const kind: Kind = /hotel|hostel|guest|motel|resort|apartment|chalet/.test(type) ? 'stay' : /restaurant|cafe|fast_food|bar|pub/.test(type) ? 'eat'
-      : /bus|ferry|car_rental|taxi|airport/.test(type) ? 'transport' : /mall|gift|marketplace/.test(type) ? 'shop' : 'tour'
-    let [lo, hi, unit] = EST[type] ?? [0, 0, '']
-    if (type === 'hotel' && t.stars && HOTEL_STARS[t.stars[0]]) [lo, hi] = HOTEL_STARS[t.stars[0]]
-    const tagged = t.charge || t.fee && /\d/.test(t.fee) ? t.charge || t.fee : undefined
-    const pr = tagged ? parsePrice(tagged) : {}
-    return {
-      id: `osm-${e.type}-${e.id}`, name: t.name, kind, type: type.replace(/_/g, ' '), source: 'OpenStreetMap',
-      price: tagged ?? (hi ? `${php(lo).replace('.00', '')} – ${php(hi).replace('.00', '')}${unit}` : undefined),
-      priceLow: pr.low ?? (hi ? lo : undefined), priceHigh: pr.high ?? (hi ? hi : undefined), priceIsEstimate: !tagged && !!hi,
-      amenities: osmAmenities(t), description: t.description || t['description:en'],
-      address: [t['addr:housenumber'], t['addr:street'], t['addr:city'] || t['addr:municipality']].filter(Boolean).join(' ') || undefined,
-      hours: t.opening_hours, phone: t.phone || t['contact:phone'], url: t.website || t['contact:website'] || t['contact:facebook'],
-      lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon,
-    }
-  })
 }

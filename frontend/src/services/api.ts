@@ -7,6 +7,24 @@ type ApiFailure = {
   fieldErrors?: Record<string, string>
 }
 
+type NearbyPlace = {
+  id: string
+  name: string
+  kind: 'stay' | 'eat' | 'tour' | 'transport' | 'shop'
+  type: string
+  source: 'Google Places'
+  amenities: string[]
+  description?: string
+  address?: string
+  hours?: string
+  phone?: string
+  url?: string
+  lat?: number
+  lon?: number
+  rating?: number
+  reviewCount?: number
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly fieldErrors: Record<string, string>
@@ -84,6 +102,8 @@ export const api = {
     return request<{ url: string }>(`/trips/${encodeURIComponent(tripId)}/photos/cover`, { method: 'PUT', body: form })
   },
   listTrips: () => request<Trip[]>('/trips'),
+  discoverPlaces: (lat: number, lon: number) =>
+    request<NearbyPlace[]>(`/discover/places?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`),
   createTrip: (trip: Trip) => request<Trip>('/trips', { method: 'POST', body: JSON.stringify(trip) }),
   updateTrip: (trip: Trip) =>
     request<Trip>(`/trips/${encodeURIComponent(trip.id)}`, { method: 'PUT', body: JSON.stringify(trip) }),

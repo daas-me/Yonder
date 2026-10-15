@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { geocode } from '../../services'
+import { api, geocode } from '../../services'
 import { type Activity, CATS, PlusIcon, type Trip } from '../../shared'
-import { fromOSM, fromWikivoyage, type Kind, KINDS, type Place } from './sources'
+import { fromWikivoyage, type Kind, KINDS, type Place } from './sources'
 
 const cache = new Map<string, { places: Place[]; page?: string; errors: string[] }>()
 
@@ -12,25 +12,30 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
   const [sort, setSort] = useState<'relevance' | 'low' | 'high'>('relevance')
   const [withPrice, setWithPrice] = useState(false)
   const [limit, setLimit] = useState(24)
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
-    if (cache.has(trip.destination)) return
+    const cached = cache.get(trip.destination)
+    if (cached) {
+      setData(cached)
+      return
+    }
     let live = true
     ;(async () => {
       const errors: string[] = []
       const geo = trip.geo ?? (await geocode(trip.destination)) ?? (await geocode(trip.destination.split(',')[0]))
-      const [wv, osm] = await Promise.all([
+      const [wv, googlePlaces] = await Promise.all([
         fromWikivoyage(trip.destination).catch(() => { errors.push('Wikivoyage'); return { places: [] as Place[], page: undefined } }),
-        geo ? fromOSM(geo.lat, geo.lon).catch(() => { errors.push('OpenStreetMap'); return [] as Place[] }) : Promise.resolve([] as Place[]),
+        geo ? api.discoverPlaces(geo.lat, geo.lon).catch(() => { errors.push('Google Places'); return [] as Place[] }) : Promise.resolve([] as Place[]),
       ])
-      // Guide listings first; drop OSM duplicates of the same name
+      // Guide listings first; drop Google duplicates of the same name
       const seen = new Set(wv.places.map(p => p.name.toLowerCase()))
-      const res = { places: [...wv.places, ...osm.filter(p => !seen.has(p.name.toLowerCase()))], page: wv.page, errors }
-      cache.set(trip.destination, res)
+      const res = { places: [...wv.places, ...googlePlaces.filter(p => !seen.has(p.name.toLowerCase()))], page: wv.page, errors }
+      if (!errors.length) cache.set(trip.destination, res)
       if (live) setData(res)
     })()
     return () => { live = false }
-  }, [trip.destination, trip.geo])
+  }, [trip.destination, trip.geo, retry])
 
   const list = useMemo(() => {
     if (!data) return []
@@ -84,7 +89,7 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
       ) : !data.places.length ? (
         <div className="rounded-2xl border border-dashed border-line2 p-10 text-center text-sm text-ink/60">
           No places found for "{trip.destination}". Try a more specific destination, like "Baguio, Benguet" or "El Nido, Palawan".
-          {data.errors.length > 0 && <div className="mt-2 text-clay">Couldn't reach: {data.errors.join(', ')}.</div>}
+          {data.errors.length > 0 && <div className="mt-2 text-clay">Couldn't reach: {data.errors.join(', ')}. <button className="font-semibold underline" onClick={() => { cache.delete(trip.destination); setData(null); setRetry(value => value + 1) }}>Try again</button></div>}
         </div>
       ) : (
         <>
@@ -101,6 +106,7 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
                       </div>
                       <h4 className="font-display text-lg font-semibold leading-snug">{p.name}</h4>
                       {p.address && <p className="truncate text-xs text-ink/55">{p.address}</p>}
+                      {p.rating != null && <p className="mt-1 text-xs font-semibold text-ink/65">★ {p.rating.toFixed(1)}{p.reviewCount != null ? ` · ${p.reviewCount.toLocaleString()} reviews` : ''}</p>}
                     </div>
                     {p.price && (
                       <div className="shrink-0 text-right">
@@ -118,7 +124,7 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
                   )}
                   <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 text-xs">
                     {p.url && <a className="font-semibold text-pine hover:underline" href={p.url} target="_blank" rel="noreferrer">Website</a>}
-                    {p.lat != null && <a className="font-semibold text-pine hover:underline" href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=17/${p.lat}/${p.lon}`} target="_blank" rel="noreferrer">Map</a>}
+                    {p.lat != null && p.lon != null && p.source === 'Google Places' && <a className="font-semibold text-pine hover:underline" href={`https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lon}`} target="_blank" rel="noreferrer">Google Maps</a>}
                     <a className="font-semibold text-pine hover:underline" href={blog(p)} target="_blank" rel="noreferrer">Blog reviews</a>
                     {p.ref && <a className="text-ink/50 hover:underline" href={p.ref} target="_blank" rel="noreferrer">Wikivoyage guide</a>}
                     <span className="ml-auto text-[10px] text-ink/40">via {p.source}</span>
@@ -131,9 +137,8 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
           {list.length === 0 && <p className="py-10 text-center text-sm text-ink/60">Nothing matches these filters.</p>}
           {list.length > limit && <div className="mt-6 text-center"><button className="btn btn-ghost ring-1 ring-line" onClick={() => setLimit(l => l + 24)}>Show more ({list.length - limit})</button></div>}
           <p className="mt-8 rounded-xl bg-moss/50 p-4 text-xs leading-relaxed text-ink/60">
-            <b>About these suggestions.</b> Listings come from the <a className="underline" href={data.page ? `https://en.wikivoyage.org/wiki/${encodeURIComponent(data.page.replace(/ /g, '_'))}` : 'https://en.wikivoyage.org'} target="_blank" rel="noreferrer">Wikivoyage{data.page ? ` "${data.page}"` : ''}</a> travel guide and from <a className="underline" href="https://www.openstreetmap.org" target="_blank" rel="noreferrer">OpenStreetMap</a>, both written by volunteers.
-            "Guide price" is quoted from Wikivoyage. "Typical range" is Yonder's estimate for that type of place in the Philippines, not a live rate. "Blog reviews" searches the web for travel bloggers who have written about the place. Always check prices and availability before you book.
-            {data.errors.length > 0 && <span className="text-clay"> Couldn't reach {data.errors.join(', ')} right now.</span>}
+            <b>About these suggestions.</b> Listings come from the <a className="underline" href={data.page ? `https://en.wikivoyage.org/wiki/${encodeURIComponent(data.page.replace(/ /g, '_'))}` : 'https://en.wikivoyage.org'} target="_blank" rel="noreferrer">Wikivoyage{data.page ? ` "${data.page}"` : ''}</a> travel guide and <a className="underline" href="https://maps.google.com" target="_blank" rel="noreferrer">Google Places</a>. "Guide price" is quoted from Wikivoyage; Google ratings and review counts come from Google Places. "Blog reviews" searches the web for travel bloggers who have written about the place. Always check prices and availability before you book.
+            {data.errors.length > 0 && <span className="text-clay"> Couldn't reach {data.errors.join(', ')} right now. <button className="font-semibold underline" onClick={() => { cache.delete(trip.destination); setData(null); setRetry(value => value + 1) }}>Try again</button></span>}
           </p>
         </>
       )}
