@@ -2,7 +2,7 @@
 
 This document compares the current Yonder prototype with the *Yonder Mini Proposal + SRS + SDD* and lists everything still needed for a complete, defensible submission.
 
-> **Current state:** a working **frontend-only** React + Vite + Tailwind prototype. All data lives in the browser (`localStorage` for records, `IndexedDB` for journal photos). The **Spring Boot REST API and MySQL database from the SDD do not exist yet.**
+> **Current state:** the project is arranged as `frontend/` (React + Vite) and `backend/app/` (modular Spring Boot API), with shared requirements in `docs/`. Authentication, trip data, and photo binaries use the API; photo files are stored under a configurable local filesystem directory. Share links use revocable random tokens and expire after 30 days. A fictional demo account/trip is seeded only with the `dev` profile. Remaining operational and product gaps are listed below.
 
 Legend: `[x]` done · `[~]` partly done or prototype only · `[ ]` not started
 Priority: **P0** required by the SRS/SDD · **P1** needed for a solid demo · **P2** nice to have / future
@@ -11,8 +11,10 @@ Priority: **P0** required by the SRS/SDD · **P1** needed for a solid demo · **
 
 ## 1. Project structure (current)
 
+The repository separates the React client (`frontend/`), Spring Boot API (`backend/app/`), and project documentation (`docs/`). The backend is organized by feature (`auth/`, `trip/`) with shared `common/` and `config/` packages; each feature keeps its controller, DTO, service, entity, and repository responsibilities separate.
+
 ```
-src/
+frontend/src/
 ├─ main.tsx                    # React entry
 ├─ index.css                   # Tailwind v4, theme tokens, dark mode, cork/print styles
 ├─ app/
@@ -51,17 +53,17 @@ src/
 |---|---|---|---|
 | FR-01 | Create trip | [x] | Plus color, cover, tagline, budget limit, misc spending |
 | FR-02 | Read trips | [x] | Search + upcoming/past filter; list or grid ticket layout (remembered per browser) |
-| FR-03 | View trip / 404 | [~] | Friendly "not found" exists; no real HTTP 404 (no API) |
-| FR-04 | Update trip, range must contain activities | [x] | Checked in the browser only |
-| FR-05 | Delete trip + activities | [x] | Confirmation included; needs DB cascade (BR-04) |
+| FR-03 | View trip / 404 | [x] | Friendly "not found" plus API 404 for missing trips |
+| FR-04 | Update trip, range must contain activities | [x] | Validated in frontend and backend |
+| FR-05 | Delete trip + activities | [x] | Confirmation included; database cascade is configured |
 | FR-06 | Create activity | [x] | Date-in-range, cost ≥ 0, 2 decimals |
 | FR-07 | Read activities of a trip | [x] | |
 | FR-08 | Update activity | [x] | Also inline on the timeline: log actual spending and set status (On time / Delayed / Cancelled) |
 | FR-09 | Delete activity with confirmation | [x] | |
 | FR-10 | Sort by date, time, ID | [x] | `sortActs()` |
 | FR-11 | Budget total (PHP 0.00 when empty) | [x] | Includes misc spending and **excludes cancelled activities** (their cost returns to headroom), so it differs from the SRS definition (see §4) |
-| FR-12 | Frontend + **backend** validation | [~] | Frontend only. **Backend validation missing (P0)** |
-| FR-13 | Status & error feedback | [~] | Toasts and empty states exist. No server/network error handling for CRUD (no API) |
+| FR-12 | Frontend + **backend** validation | [x] | Client checks plus request DTO and service validation |
+| FR-13 | Status & error feedback | [~] | Toasts, loading states, and API errors exist; retry and field-level server feedback remain incomplete |
 | FR-14 | Trip overview | [x] | |
 
 ## 3. Non-functional requirements: status
@@ -70,12 +72,12 @@ src/
 |---|---|---|---|
 | NFR-01 | Usability (≤ 3 steps) | [~] | Likely met; needs a documented walkthrough |
 | NFR-02 | Performance (95% GET ≤ 1 s) | [ ] | Can't be measured without the API. Needs a seeded dataset (100 trips / 1,000 activities) and measurements |
-| NFR-03 | Integrity (PK/FK, no orphans) | [ ] | Needs MySQL constraints |
-| NFR-04 | Security (JPA, CORS allowlist, no committed secrets) | [ ] | **Passwords are stored in plain text in localStorage.** See §6 |
-| NFR-05 | Reliability (no partial writes) | [ ] | Needs `@Transactional` services |
+| NFR-03 | Integrity (PK/FK, no orphans) | [x] | Database primary/foreign keys, uniqueness, checks, and cascades are defined |
+| NFR-04 | Security (JPA, CORS allowlist, no committed secrets) | [~] | Passwords are BCrypt-hashed; trip access is owner-scoped; photo uploads are type/size limited; share tokens are random, hashed at rest, revocable, and expire after 30 days. Production object storage and privacy policy remain deployment/documentation work. See §6 |
+| NFR-05 | Reliability (no partial writes) | [x] | Trip aggregate writes and account operations are transactional |
 | NFR-06 | Compatibility (Chrome/Edge, ≥ 375 px) | [~] | Built responsive; needs testing on real devices with screenshots |
-| NFR-07 | Maintainability (layers) | [~] | Frontend is now modular. Backend layers (controller/service/repository/DTO) missing |
-| NFR-08 | Testability | [ ] | **No automated tests** on either side |
+| NFR-07 | Maintainability (layers) | [x] | Frontend is feature-modular; backend separates controllers, services, repositories, DTOs, entities, shared errors, and configuration |
+| NFR-08 | Testability | [~] | Backend API integration tests cover trip CRUD, ownership, validation, and sessions; frontend automated tests are not set up |
 
 ---
 
@@ -92,14 +94,14 @@ The prototype now goes beyond the approved V1 scope. The proposal, SRS and SDD m
 
 ---
 
-## 5. Backend: Spring Boot + MySQL (P0, not started)
+## 5. Backend: Spring Boot + MySQL (P0)
 
 ### 5.1 Project setup
-- [ ] Maven project, Java 21, Spring Web, Spring Data JPA, Bean Validation, MySQL driver, (Spring Security if keeping login)
-- [ ] `application.yml` using environment variables for DB credentials (no secrets in git)
-- [ ] Flyway or Liquibase migrations + seed data script
-- [ ] CORS allowlist for the frontend origin only
-- [ ] Global `@RestControllerAdvice` → consistent JSON errors (400 with field errors, 404, 409, 500)
+- [x] Maven project, Java 21, Spring Web, Spring Data JPA, Bean Validation, MySQL driver, Spring Security
+- [x] `application.yml` using environment variables for DB credentials (no secrets in git)
+- [x] Flyway schema migrations and an idempotent, development-profile-only fictional demo seed are in place
+- [x] CORS allowlist for the configured frontend origin
+- [x] Consistent JSON errors for validation, 401/403, 404, 409 and 500 responses
 
 ### 5.2 Proposed tables
 | Table | Key columns | Notes |
@@ -112,41 +114,42 @@ The prototype now goes beyond the approved V1 scope. The proposal, SRS and SDD m
 | `checklist_items` | id, trip_id FK cascade, text, done | Packing list |
 
 ### 5.3 REST endpoints (suggested)
+Implemented:
 ```
-POST/GET          /api/trips                     GET /api/trips/{id}  PUT /api/trips/{id}  DELETE /api/trips/{id}
-GET/POST          /api/trips/{id}/activities     PUT/DELETE /api/activities/{id}
-GET               /api/trips/{id}/overview       -> trip + sorted activities + totals (FR-14)
-GET/POST          /api/trips/{id}/extras         PUT/DELETE /api/extras/{id}
-GET/POST          /api/trips/{id}/memories       PUT/DELETE /api/memories/{id}   (multipart for photos)
-GET               /api/trips/{id}/memories.zip
-GET/POST/PUT/DEL  /api/trips/{id}/checklist
-POST              /api/trips/{id}/duplicate
-POST/DELETE       /api/trips/{id}/share          GET /api/shared/{token}   (replaces URL-hash sharing)
-POST              /api/auth/register  /api/auth/login  /api/auth/logout    GET/PUT /api/me  PUT /api/me/password  DELETE /api/me
-GET               /api/discover?destination=...   (optional server-side proxy + cache)
+GET/POST          /api/trips                     GET/PUT/DELETE /api/trips/{id}
+POST              /api/auth/register  /api/auth/login  /api/auth/logout
+GET               /api/auth/csrf  /api/auth/me
+PUT               /api/me  /api/me/password      DELETE /api/me
+PUT/GET/DELETE    /api/me/photo
+PUT/GET/DELETE    /api/trips/{id}/photos/{memories|activities}/{itemId}
+PUT/GET           /api/trips/{id}/photos/cover
+POST              /api/trips/{id}/share         DELETE /api/trips/{id}/shares
+GET               /api/shared/{token}           GET /api/shared/{token}/photos/{memories|activities}/{itemId}
+GET               /api/shared/{token}/photos/cover
 ```
+Activities, extras, checklist items, and memory metadata are read/written atomically as part of a trip aggregate. Profile, cover, journal, and activity photo bytes are compressed in the browser and stored as JPEG files on the backend filesystem (8 MB upload limit); file keys remain private in the database. Configure `PHOTO_STORAGE_DIR` and back up that directory with the database. Account/trip deletion removes associated files. Share tokens are stored as SHA-256 hashes and revoke-all is owner-only. Dedicated nested CRUD routes, duplicate/overview routes, and Discover proxying are not implemented yet.
 
 ### 5.4 Server-side business rules
-- [ ] BR-01 start ≤ end · BR-02 activity within trip range · BR-03 cost ≥ 0, max 2 decimals
-- [ ] BR-04 cascade delete in one transaction · BR-05 reject date-range changes that would leave activities outside the trip
-- [ ] Ownership check on every endpoint (a user can only access their own trips)
-- [ ] File upload limits (type + size) for photos
+- [x] BR-01 start ≤ end · BR-02 activity within trip range · BR-03 cost ≥ 0, max 2 decimals
+- [x] BR-04 cascade delete in one transaction · BR-05 reject date-range changes that would leave activities outside the trip
+- [x] Ownership check for trip endpoints
+- [x] JPEG-only photo uploads, 8 MB file limit, filesystem path handling, ownership-checked reads/writes, and deletion cleanup
 
 ### 5.5 Frontend integration
-- [ ] Replace `localStorage` / `IndexedDB` reads and writes in `app/App.tsx` and `features/memories/storage.ts` with an API client (`src/services/api.ts`)
-- [ ] Loading states, retry, and server error messages per form field
+- [x] `app/App.tsx` uses `src/services/api.ts` for auth/trip records; profile, journal, activity, and cover photo binaries use the backend API. Display preferences remain in local storage.
+- [~] Initial loading and server errors are surfaced; retry and field-specific handling are incomplete
 - [ ] Optional: migration tool to upload existing browser data to the server
 
 ---
 
 ## 6. Security and privacy (P0 if login is kept)
 
-- [ ] **Hash passwords** (BCrypt via Spring Security). Never store or send plain text
-- [ ] Session cookie (HttpOnly, SameSite) or short-lived JWT + refresh
-- [ ] Rate-limit login; generic "invalid email or password" messages (already done in the UI)
+- [x] **Hash passwords** (BCrypt via Spring Security). Never store or send plain text
+- [x] HttpOnly session cookie, configurable SameSite/Secure attributes, and CSRF protection for writes
+- [~] Generic invalid-credential errors are implemented; login rate-limiting is not
 - [ ] Password reset flow (email) or document why it's out of scope
-- [ ] Share links: replace the hash-encoded trip data with **revocable server tokens**. Today anyone with the link sees the trip forever
-- [ ] Privacy note: journal photos and locations are personal data. State retention and deletion rules
+- [x] Share links use random server-generated tokens hashed at rest; owners can revoke all active links and links expire after 30 days
+- [~] Privacy note: document retention/deletion rules before deployment; deleting a trip/account deletes its photos and invalidates its shares
 - [ ] Keep the "no real travelers' private data on a public demo" rule from §6.3 of the proposal
 
 ---
@@ -185,8 +188,8 @@ GET               /api/discover?destination=...   (optional server-side proxy + 
 - [ ] Split costs between travelers (needs multi-user, Phase 2)
 
 ### Accounts
-- [~] Register, log in, edit profile, change password, delete account. **All client side**
-- [ ] Email verification, password reset, profile photo (P2)
+- [x] Register, log in, edit profile, change password, delete account, and upload/remove a private profile photo
+- [ ] Email verification and password reset
 
 ---
 

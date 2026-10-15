@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: yonder-api
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/yonder?createDatabaseIfNotExist=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:yonder}
+    password: ${DB_PASSWORD:123456}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  jackson:
+    default-property-inclusion: non_null
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: ${SESSION_COOKIE_SAME_SITE:lax}
+        secure: ${SESSION_COOKIE_SECURE:false}
+yonder:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:8443}
+  storage:
+    photos-directory: ${PHOTO_STORAGE_DIR:./data/photos}
