@@ -1,0 +1,19 @@
+{
+  "properties": [
+    {
+      "name": "yonder.cors.allowed-origin",
+      "type": "java.lang.String",
+      "description": "Allowed frontend origin for credentialed API requests."
+    },
+    {
+      "name": "yonder.storage.photos-directory",
+      "type": "java.lang.String",
+      "description": "Local directory used to persist uploaded photos."
+    },
+    {
+      "name": "yonder.demo-seed.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enables fictional demo account and trip seeding when explicitly set."
+    }
+  ]
+}
