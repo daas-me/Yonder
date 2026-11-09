@@ -10,10 +10,11 @@ import { CoverPicker, DuplicateForm, TripForm } from '../trips'
 import { WeatherIcon } from '../weather'
 import { ActivityForm } from './ActivityForm'
 
-type Props = { trip: Trip; fresh?: boolean; readOnly?: boolean; onBack: () => void; onUpdate: (t: Trip) => void; onDelete: () => void; onDuplicate: (t: Trip) => void; toast: (m: string) => void }
+type Props = { trip: Trip; fresh?: boolean; readOnly?: boolean; onBack: () => void; onUpdate: (t: Trip) => void | boolean | Promise<void | boolean>; onDelete: () => void; onDuplicate: (t: Trip) => void; toast: (m: string) => void }
 
 export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDelete, onDuplicate, toast }: Props) {
   const [editTrip, setEditTrip] = useState(false)
+  const [tripUpdated, setTripUpdated] = useState<Trip | null>(null)
   const [actForm, setActForm] = useState<{ act?: Activity; init?: Partial<Activity> } | null>(null)
   const [confirm, setConfirm] = useState<null | { kind: 'trip' } | { kind: 'act'; id: string }>(null)
   const [mode, setMode] = useState<'timeline' | 'board' | 'map' | 'discover'>(fresh && !readOnly ? 'discover' : 'timeline')
@@ -201,7 +202,10 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
         <div className="relative">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <span className="no-print mb-4 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur">{readOnly ? 'Shared itinerary · view only' : status}</span>
+            <div className="no-print mb-4 flex flex-wrap gap-2">
+              <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur">{readOnly ? 'Shared itinerary · view only' : status}</span>
+              <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur">{trip.groupTrip ? <><span>Group trip · {trip.travelers?.length ?? 0} pax</span><span className="sr-only">, travelers</span></> : 'Solo trip'}</span>
+            </div>
             <div className="flex items-center gap-1.5 text-sm font-medium opacity-90"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>{trip.destination}</div>
             <h1 className="mt-3 max-w-3xl font-display text-4xl sm:text-5xl">{trip.name}</h1>
             <p className="mt-2 text-sm opacity-80">{fmt(trip.start, { weekday: 'short', month: 'long', day: 'numeric' })} — {fmt(trip.end, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</p>
@@ -388,7 +392,24 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
         </aside>
       </div>
 
-      {editTrip && <TripForm trip={trip} onClose={() => setEditTrip(false)} onSave={v => { onUpdate({ ...tripRef.current, ...v, geo: v.destination === trip.destination ? trip.geo : undefined }); setEditTrip(false); toast('Trip updated') }} />}
+      {editTrip && <TripForm trip={trip} onClose={() => setEditTrip(false)} onSave={async v => {
+        const updatedTrip = { ...tripRef.current, ...v, geo: v.destination === tripRef.current.destination ? tripRef.current.geo : undefined }
+        const saved = await onUpdate(updatedTrip)
+        if (saved === false) return false
+        setEditTrip(false)
+        setTripUpdated(updatedTrip)
+        return true
+      }} />}
+      {tripUpdated && <Modal title="Trip updated" onClose={() => setTripUpdated(null)} animated>
+        <div className="text-center">
+          <span className="trip-confirm-check mx-auto grid h-14 w-14 place-items-center rounded-full bg-pine/10 text-pine" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="trip-confirm-checkmark h-7 w-7"><path d="m5 12 4 4L19 6" /></svg>
+          </span>
+          <p className="trip-confirm-title mt-4 font-display text-xl font-semibold">{tripUpdated.name}</p>
+          <p className="trip-confirm-description mt-1 text-sm text-ink/60">{tripUpdated.groupTrip ? `Group trip · ${tripUpdated.travelers?.length ?? 0} travelers` : 'Solo trip'} changes are saved.</p>
+          <button type="button" className="trip-confirm-button btn btn-primary mt-6 min-w-28" onClick={() => setTripUpdated(null)}>Done</button>
+        </div>
+      </Modal>}
       {actForm && <ActivityForm trip={trip} act={actForm.act} initial={actForm.init} onClose={() => setActForm(null)} onSave={a => {
         const prev = actForm.act
         const moved = prev && prev.location !== a.location

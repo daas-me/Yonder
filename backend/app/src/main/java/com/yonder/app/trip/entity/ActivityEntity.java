@@ -40,6 +40,12 @@ public class ActivityEntity {
     private String notes = "";
     @Column(name = "image_url", length = 2048)
     private String image;
+    @Column(name = "share_mode", length = 8)
+    private String shareMode;
+    @Column(name = "shared_traveler_ids_json", columnDefinition = "TEXT")
+    private String sharedTravelerIdsJson;
+    @Column(name = "personal_amounts_json", columnDefinition = "TEXT")
+    private String personalAmountsJson;
     private Double latitude;
     private Double longitude;
 
@@ -74,4 +80,10 @@ public class ActivityEntity {
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public String getShareMode() { return shareMode; }
+    public void setShareMode(String shareMode) { this.shareMode = shareMode; }
+    public String getSharedTravelerIdsJson() { return sharedTravelerIdsJson; }
+    public void setSharedTravelerIdsJson(String sharedTravelerIdsJson) { this.sharedTravelerIdsJson = sharedTravelerIdsJson; }
+    public String getPersonalAmountsJson() { return personalAmountsJson; }
+    public void setPersonalAmountsJson(String personalAmountsJson) { this.personalAmountsJson = personalAmountsJson; }
 }

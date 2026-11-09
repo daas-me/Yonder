@@ -9,6 +9,22 @@ import { ApiError, api, assetUrl, readShareToken } from '../services'
 import { Confirm, load, Logo, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
+type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account' }
+
+function initialView(): AppView {
+  try {
+    const saved = sessionStorage.getItem('yonder.view')
+    if (saved) {
+      const view = JSON.parse(saved) as AppView
+      if (view.page === 'trip' && typeof view.id === 'string') return { page: 'trip', id: view.id }
+      if (view.page === 'account') return view
+    }
+  } catch {
+    // Ignore unavailable or malformed session state and start at the trip list.
+  }
+  return { page: 'trips' }
+}
+
 function UserAvatar({ user, className = 'h-10 w-10' }: { user: User; className?: string }) {
   return (
     <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-clay/15 font-semibold text-clay ring-1 ring-ink/5 ${className}`} aria-hidden="true">
@@ -23,7 +39,14 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [trips, setTrips] = useState<Trip[]>([])
   const [authLoading, setAuthLoading] = useState(true)
-  const [view, setView] = useState<{ page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account' }>({ page: 'trips' })
+  const [view, setView] = useState<AppView>(initialView)
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('yonder.view', JSON.stringify(view))
+    } catch {
+      // Navigation still works for the current page if session storage is unavailable.
+    }
+  }, [view])
   const [newTrip, setNewTrip] = useState(false)
   const [importing, setImporting] = useState(false)
   const [shared, setShared] = useState<Trip | null>(null)
@@ -85,11 +108,11 @@ export default function App() {
     await api.register(name, email, password)
     await signIn(email, password)
   }
-  const saveQueues = useRef(new Map<string, Promise<void>>())
+  const saveQueues = useRef(new Map<string, Promise<boolean>>())
   const persistTrip = (trip: Trip) => {
     setTrips(currentTrips => currentTrips.map(current => current.id === trip.id ? trip : current))
-    const previous = saveQueues.current.get(trip.id) ?? Promise.resolve()
-    const pending = previous.catch(() => {}).then(async () => {
+    const previous = saveQueues.current.get(trip.id) ?? Promise.resolve(true)
+    const pending = previous.catch(() => false).then(async () => {
       try {
         let toSave = trip
         if (trip.cover?.startsWith('data:')) {
@@ -99,6 +122,7 @@ export default function App() {
         }
         const saved = await api.updateTrip(toSave)
         setTrips(currentTrips => currentTrips.map(current => current.id === saved.id ? saved : current))
+        return true
       } catch (error) {
         setMsg(error instanceof Error ? `Could not save trip: ${error.message}` : 'Could not save trip')
         try {
@@ -106,6 +130,7 @@ export default function App() {
         } catch (reloadError) {
           setMsg(reloadError instanceof Error ? `Save failed and trips could not be reloaded: ${reloadError.message}` : 'Save failed and trips could not be reloaded')
         }
+        return false
       }
     })
     saveQueues.current.set(trip.id, pending)

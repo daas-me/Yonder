@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api, assetUrl } from '../../services'
-import { type Memory, PlusIcon, uid } from '../../shared'
+import { type Memory, PlusIcon, uid, useModalScrollLock } from '../../shared'
 import { compress, delPhotos, getPhoto } from './storage'
 
 function usePhoto(id: string, photoUrl?: string) {
@@ -25,6 +25,7 @@ type Props = {
 }
 
 export default function MemoriesModal({ tripId, title, subtitle, cover, memories, readOnly, onChange, onDownload, onClose, toast }: Props) {
+  useModalScrollLock()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState('')
   const [view, setView] = useState<string | null>(null)
@@ -112,7 +113,7 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
             <span className="text-xs font-semibold uppercase tracking-[.25em] text-black/45">Journal</span>
             <button className="rounded px-2 py-1 text-black/50 hover:bg-black/5" onClick={onClose} aria-label="Close">✕</button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-5">
+          <div className="modal-scroll min-h-0 flex-1 overflow-auto p-5">
             {!readOnly && (
               <div className="mb-6 rounded-xl bg-[#f4efe2] p-3">
                 <textarea className="w-full resize-none bg-transparent font-hand text-2xl leading-snug outline-none placeholder:text-black/30" rows={3} placeholder="What happened here? How did it feel?" value={text} onChange={e => setText(e.target.value)}

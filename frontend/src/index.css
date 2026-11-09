@@ -61,6 +61,49 @@ h1.font-display { font-weight: 800; line-height: 1.02; }
   0%, 70%, 100% { transform: scale(1); }
   80% { transform: scale(1.35); }
 }
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalPanelIn {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes confirmContentIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes confirmCheckIn {
+  0% { opacity: 0; transform: scale(.45) rotate(-18deg); }
+  65% { opacity: 1; transform: scale(1.12) rotate(4deg); }
+  82% { transform: scale(.96) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes confirmHalo {
+  0% { opacity: .55; transform: scale(.72); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+@keyframes confirmCheckDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes confirmTextIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes confirmButtonIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-enter-backdrop { animation: modalBackdropIn .18s ease-out both; }
+.modal-enter-panel { animation: modalPanelIn .24s cubic-bezier(.2,.8,.2,1) both; }
+.trip-confirm-content { animation: confirmContentIn .2s ease-out both; }
+.trip-confirm-check { position: relative; animation: confirmCheckIn .55s cubic-bezier(.2,.8,.2,1) both; }
+.trip-confirm-check::before { position: absolute; inset: 0; border: 1px solid color-mix(in srgb, var(--color-pine) 38%, transparent); border-radius: inherit; content: ''; animation: confirmHalo .55s ease-out .12s both; }
+.trip-confirm-checkmark path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: confirmCheckDraw .32s ease-out .24s forwards; }
+.trip-confirm-title { animation: confirmTextIn .3s ease-out .18s both; }
+.trip-confirm-description { animation: confirmTextIn .3s ease-out .26s both; }
+.trip-confirm-button { animation: confirmButtonIn .32s cubic-bezier(.2,.8,.2,1) .34s both; }
+.modal-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .nav-tile {
   color: var(--nav-accent);
   background: color-mix(in srgb, var(--nav-accent) 13%, transparent);
@@ -122,7 +165,21 @@ h1.font-display { font-weight: 800; line-height: 1.02; }
   background: var(--color-sand);
   content: '';
 }
+.coming-soon-switch.enabled-switch {
+  cursor: pointer;
+  opacity: 1;
+}
+.coming-soon-switch.enabled-switch:checked {
+  background: var(--color-pine);
+}
+.coming-soon-switch.enabled-switch:checked::before {
+  transform: translateX(1rem);
+}
 @media (prefers-reduced-motion: reduce) {
+  .modal-enter-backdrop, .modal-enter-panel, .trip-confirm-content, .trip-confirm-check,
+  .trip-confirm-check::before, .trip-confirm-checkmark path, .trip-confirm-title,
+  .trip-confirm-description, .trip-confirm-button { animation: none; }
+  .trip-confirm-checkmark path { stroke-dashoffset: 0; }
   .nav-tile { transition: none; }
   .group:hover .nav-tile { transform: none; }
   .nav-upcoming-dot { animation: none; }

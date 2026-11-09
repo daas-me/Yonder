@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { assetUrl, resizeImage } from '../../services'
-import { defaultTripCover, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, defaultTripCover, type Cat, type CostShareMode, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip, type TripTraveler, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 
 /* ---------------- Trip form ---------------- */
-export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: Pick<Trip, 'name' | 'destination' | 'start' | 'end' | 'description' | 'budget' | 'extras' | 'color' | 'cover' | 'tagline'>) => void; onClose: () => void }) {
+type TripFormValues = Pick<Trip, 'name' | 'destination' | 'start' | 'end' | 'description' | 'budget' | 'extras' | 'color' | 'cover' | 'tagline' | 'groupTrip' | 'travelers' | 'categoryShareModes'>
+
+export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: TripFormValues) => void | boolean | Promise<void | boolean>; onClose: () => void }) {
   const [f, setF] = useState({ name: trip?.name ?? '', destination: trip?.destination ?? '', start: trip?.start ?? '', end: trip?.end ?? '', description: trip?.description ?? '', budget: trip?.budget ? String(trip.budget) : '', tagline: trip?.tagline ?? '', color: trip?.color ?? THEMES[0], cover: trip?.cover })
+  const [groupTrip, setGroupTrip] = useState(trip?.groupTrip ?? false)
+  const [travelers, setTravelers] = useState<TripTraveler[]>(() => trip?.travelers?.length
+    ? trip.travelers
+    : [{ id: uid(), name: '' }, { id: uid(), name: '' }])
+  const [categoryShareModes, setCategoryShareModes] = useState<Partial<Record<Cat, CostShareMode>>>(trip?.categoryShareModes ?? {})
   const [extras, setExtras] = useState<Extra[]>(trip?.extras ?? [])
   const [err, setErr] = useState<Record<string, string>>({})
+  const [pendingChanges, setPendingChanges] = useState<TripFormValues | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const er: Record<string, string> = {}
@@ -18,13 +28,61 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
     if (f.start && f.end && f.end < f.start) er.end = 'End date must be on or after start date.'
     if (f.description.length > 1000) er.description = 'Max 1,000 characters.'
     if (f.budget && !/^\d+(\.\d{1,2})?$/.test(f.budget)) er.budget = 'Enter a nonnegative amount with up to 2 decimals.'
+    if (groupTrip && (travelers.length < 2 || travelers.length > 99)) er.travelers = 'A group trip needs 2 to 99 travelers, including you.'
     if (extras.some(x => !x.label.trim())) er.extras = 'Give every misc expense a name, or remove it.'
     if (trip && f.start && f.end && trip.activities.some(a => a.date < f.start || a.date > f.end)) er.end = 'Some activities fall outside this new date range. Move them first.'
     setErr(er)
-    if (!Object.keys(er).length) onSave({ ...f, name: f.name.trim(), destination: f.destination.trim(), budget: f.budget ? Number(f.budget) : undefined, tagline: f.tagline.trim().slice(0, 80), extras: extras.map(x => ({ ...x, label: x.label.trim() })) })
+    if (!Object.keys(er).length) {
+      const values: TripFormValues = {
+      ...f,
+      name: f.name.trim(),
+      destination: f.destination.trim(),
+      budget: f.budget ? Number(f.budget) : undefined,
+      tagline: f.tagline.trim().slice(0, 80),
+      extras: extras.map(x => ({ ...x, label: x.label.trim() })),
+      groupTrip,
+      travelers,
+      categoryShareModes: Object.fromEntries((Object.keys(DEFAULT_CATEGORY_SHARE_MODES) as Cat[]).map(category =>
+        [category, categoryShareModes[category] ?? DEFAULT_CATEGORY_SHARE_MODES[category]])),
+      }
+      if (trip) setPendingChanges(values)
+      else void onSave(values)
+    }
+  }
+  const confirmSave = async () => {
+    if (!pendingChanges) return
+    setSaving(true)
+    setSaveError('')
+    try {
+      const result = await onSave(pendingChanges)
+      if (result === false) setSaveError('The trip could not be saved. Please try again.')
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'The trip could not be saved. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
   return (
-    <Modal title={trip ? 'Edit trip' : 'Design a new trip'} onClose={onClose} wide>
+    <Modal title={pendingChanges ? 'Confirm trip changes' : trip ? 'Edit trip' : 'Design a new trip'} onClose={onClose} wide animated={Boolean(trip)}>
+      {pendingChanges && trip ? (
+        <div key="confirm-trip-changes" className="trip-confirm-content space-y-5">
+          <div>
+            <p className="font-display text-xl font-semibold">Save these changes?</p>
+            <p className="mt-1 text-sm text-ink/60">Review the updated trip details before saving.</p>
+          </div>
+          <dl className="divide-y divide-line rounded-xl bg-sand/60 px-4">
+            <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Trip</dt><dd className="truncate text-right font-medium">{pendingChanges.name}</dd></div>
+            <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Destination</dt><dd className="truncate text-right font-medium">{pendingChanges.destination}</dd></div>
+            <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Trip type</dt><dd className="text-right font-medium">{pendingChanges.groupTrip ? `Group · ${pendingChanges.travelers?.length ?? 0} travelers` : 'Solo trip'}</dd></div>
+            <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Dates</dt><dd className="text-right font-medium">{pendingChanges.start} – {pendingChanges.end}</dd></div>
+          </dl>
+          {saveError && <p role="alert" className="rounded-lg bg-clay/10 px-3 py-2 text-sm text-clay">{saveError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => { setPendingChanges(null); setSaveError('') }}>Back to editing</button>
+            <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void confirmSave()}>{saving ? 'Saving…' : 'Confirm changes'}</button>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={submit} className="space-y-4">
         <Field label="Trip name" error={err.name}><input className="input" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Summer in Siargao" /></Field>
         <Field label="Destination" error={err.destination}><input className="input" value={f.destination} onChange={e => setF({ ...f, destination: e.target.value })} placeholder="General Luna, Siargao" /></Field>
@@ -35,17 +93,56 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
         <Field label="Tagline (optional)"><input className="input" value={f.tagline} maxLength={80} placeholder="Salt, sun and slow mornings" onChange={e => setF({ ...f, tagline: e.target.value })} /></Field>
         <Field label="Description (optional)" error={err.description}><textarea className="input" rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></Field>
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-line2 bg-sand/50 px-4 py-3">
+        <Section title="Who's going">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-ink/65">Group trip</p>
-            <p className="mt-0.5 text-xs text-ink/50">Plan and coordinate this trip with others.</p>
+            <p className="text-sm font-semibold">Group trip</p>
+            <p className="mt-0.5 text-xs text-ink/50">{groupTrip ? 'On: add travelers and choose how costs are shared.' : 'Off: this is a solo trip, just you.'}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="rounded-full bg-ink/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink/45">Coming soon</span>
-            <input type="checkbox" role="switch" aria-label="Group trip" aria-describedby="group-trip-coming-soon" disabled className="coming-soon-switch" />
-          </div>
-          <span id="group-trip-coming-soon" className="sr-only">Group trips are coming soon.</span>
+          <input type="checkbox" role="switch" aria-label="Group trip" checked={groupTrip} onChange={event => setGroupTrip(event.target.checked)} className="coming-soon-switch enabled-switch" />
         </div>
+        {groupTrip && <>
+          <div>
+            <FieldLabel text="Number of travelers (including you)" />
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 items-center overflow-hidden rounded-lg border border-line2">
+                <button type="button" aria-label="Remove traveler" disabled={travelers.length <= 2} onClick={() => setTravelers(current => current.slice(0, -1))} className="inline-flex h-full w-10 items-center justify-center text-sm leading-none text-ink/60 hover:bg-ink/5 disabled:opacity-30">−</button>
+                <span className="inline-flex h-full w-10 items-center justify-center text-sm font-semibold tabular-nums leading-none" aria-live="polite">{travelers.length}</span>
+                <button type="button" aria-label="Add traveler" disabled={travelers.length >= 99} onClick={() => setTravelers(current => [...current, { id: uid(), name: '' }])} className="inline-flex h-full w-10 items-center justify-center text-sm leading-none text-ink/60 hover:bg-ink/5 disabled:opacity-30">+</button>
+              </div>
+              <span className="text-sm text-ink/55">pax</span>
+            </div>
+            {err.travelers && <span className="mt-1 block text-xs text-clay">{err.travelers}</span>}
+          </div>
+          <div>
+            <FieldLabel text="Names (optional)" />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {travelers.map((traveler, index) => (
+                <input key={traveler.id} className="input" aria-label={index === 0 ? 'Your name' : `Traveler ${index + 1} name`} value={traveler.name} maxLength={80}
+                  placeholder={index === 0 ? 'You' : `Traveler ${index + 1}`}
+                  onChange={event => setTravelers(current => current.map(item => item.id === traveler.id ? { ...item, name: event.target.value } : item))} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <FieldLabel text="How costs are shared" className="!mb-0.5" />
+            <p className="mb-2 text-xs text-ink/50">Default for new activities. You can change this on any activity, e.g. if one person pays for everyone.</p>
+            <div className="overflow-hidden rounded-xl border border-line2">
+              {(Object.keys(DEFAULT_CATEGORY_SHARE_MODES) as Cat[]).map(category => {
+                const selected = categoryShareModes[category] ?? DEFAULT_CATEGORY_SHARE_MODES[category]
+                return (
+                  <div key={category} className="flex flex-wrap items-center justify-between gap-2 border-b border-line last:border-0 px-3 py-2">
+                    <span className="flex items-center gap-2 text-sm"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category === 'other' ? '#6b6b6b' : ({ transport: '#2f6f9f', food: '#ec6a3c', lodging: '#7a5cc4', sights: '#17675b', shopping: '#c99a2e' } as Record<string, string>)[category] }} />{category === 'other' ? 'Misc / Other' : category[0].toUpperCase() + category.slice(1)}</span>
+                    <div className="flex rounded-lg bg-ink/5 p-0.5">
+                      {(['equal', 'own'] as CostShareMode[]).map(mode => <button key={mode} type="button" aria-pressed={selected === mode} onClick={() => setCategoryShareModes(current => ({ ...current, [category]: mode }))} className={`rounded-md px-2.5 py-1 text-xs transition ${selected === mode ? 'bg-card font-semibold text-ink shadow-sm ring-1 ring-line2' : 'text-ink/50 hover:text-ink'}`}>{mode === 'equal' ? 'Split equally' : 'Each pays own'}</button>)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>}
+        </Section>
 
         <Section title="Look & feel" hint="Theme colour and cover used on your ticket and trip page.">
           <div className="flex items-center gap-4">
@@ -78,6 +175,7 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
         </Section>
         <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary">{trip ? 'Save changes' : 'Create trip'}</button></div>
       </form>
+      )}
     </Modal>
   )
 }

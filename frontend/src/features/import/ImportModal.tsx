@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, Field, FieldLabel, fmt, fmtTime, isoOf, Modal, php, sortActs, THEMES, type Trip, uid } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, Field, FieldLabel, fmt, fmtTime, isoOf, Modal, php, sortActs, THEMES, type Trip, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 import { extractText } from './extractText'
 import { type Draft, type Parsed, parseItinerary, SAMPLE } from './parser'
@@ -41,7 +41,11 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
   const create = () => {
     if (!parsed || !range || !meta.name.trim() || !meta.destination.trim()) return
     const acts: Activity[] = sortActs(kept.map(a => ({ id: uid(), title: a.title, location: a.location || meta.destination, time: a.time, cost: a.cost, notes: a.notes, category: a.category, date: a.date })))
+    const groupTrip = (parsed.travelerCount ?? 0) >= 2 && (parsed.travelerCount ?? 0) <= 99
     onCreate({ name: meta.name.trim().slice(0, 120), destination: meta.destination.trim().slice(0, 120), start: range.start, end: range.end, description: parsed.description.slice(0, 1000), activities: acts, checklist: [],
+      groupTrip,
+      travelers: groupTrip ? Array.from({ length: parsed.travelerCount! }, (_, index) => ({ id: uid(), name: index === 0 ? 'You' : '' })) : [],
+      categoryShareModes: groupTrip ? DEFAULT_CATEGORY_SHARE_MODES : {},
       color: plan.color, budget: /^\d+(\.\d{1,2})?$/.test(plan.limit) && +plan.limit > 0 ? +plan.limit : undefined, extras: plan.extras.filter(x => x.label.trim()) })
   }
 
@@ -66,7 +70,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="rounded-lg bg-moss p-3 text-sm text-ink/70">Found <b>{parsed.acts.length}</b> activities. Check the details, untick anything that's wrong, then create the trip.</p>
+          <p className="rounded-lg bg-moss p-3 text-sm text-ink/70">Found <b>{parsed.acts.length}</b> activities{parsed.travelerCount ? <> and a group of <b>{parsed.travelerCount} travelers</b></> : ''}. Check the details, untick anything that's wrong, then create the trip.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Trip name"><input className="input" value={meta.name} onChange={e => setMeta({ ...meta, name: e.target.value })} /></Field>
             <Field label="Destination"><input className="input" value={meta.destination} onChange={e => setMeta({ ...meta, destination: e.target.value })} /></Field>

@@ -1,4 +1,28 @@
 import { useEffect, useId, useState, type ChangeEvent, type ReactNode } from 'react'
+
+let activeModalCount = 0
+let previousBodyOverflow = ''
+let previousRootOverflow = ''
+
+export function useModalScrollLock() {
+  useEffect(() => {
+    if (activeModalCount === 0) {
+      previousBodyOverflow = document.body.style.overflow
+      previousRootOverflow = document.documentElement.style.overflow
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    }
+    activeModalCount++
+    return () => {
+      activeModalCount--
+      if (activeModalCount === 0) {
+        document.body.style.overflow = previousBodyOverflow
+        document.documentElement.style.overflow = previousRootOverflow
+      }
+    }
+  }, [])
+}
+
 export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 ${light ? 'text-white' : 'text-ink'}`}>
@@ -87,20 +111,21 @@ export function PasswordInput({ value, onChange, placeholder, autoComplete }: { 
   )
 }
 
-export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide, animated = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; animated?: boolean }) {
+  useModalScrollLock()
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
-      <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface rounded-2xl shadow-2xl`} onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center ${animated ? 'modal-enter-backdrop' : ''}`} onClick={onClose}>
+      <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface rounded-2xl shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <h3 className="font-display text-lg">{title}</h3>
           <button className="rounded-md px-2 py-1 text-ink/50 hover:bg-ink/5 hover:text-ink" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className="overflow-auto p-6">{children}</div>
+        <div className="modal-scroll overflow-auto p-6">{children}</div>
       </div>
     </div>
   )
