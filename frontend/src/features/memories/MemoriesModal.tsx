@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api, assetUrl } from '../../services'
-import { type Memory, PlusIcon, uid, useModalScrollLock } from '../../shared'
+import { Confirm, type Memory, PlusIcon, uid, useModalScrollLock } from '../../shared'
 import { compress, delPhotos, getPhoto } from './storage'
 
 function usePhoto(id: string, photoUrl?: string) {
@@ -168,18 +168,13 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
         </div>
       </div>
 
-      {confirmDel && (
-        <div className="fixed inset-0 z-[56] flex items-center justify-center bg-black/50 p-4" onClick={e => { e.stopPropagation(); setConfirmDel(null) }}>
-          <div className="w-full max-w-sm rounded-2xl bg-[#fffdf6] p-6 text-[#2b2b2b] shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h4 className="font-display text-xl font-semibold">Remove this {confirmDel.kind === 'photo' ? 'photo' : 'entry'}?</h4>
-            <p className="mt-2 text-sm text-black/60">This memory will be permanently deleted{confirmDel.kind === 'photo' ? ' from this browser' : ''}. This can't be undone.</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button className="rounded-lg px-4 py-2 text-sm font-semibold hover:bg-black/5" onClick={() => setConfirmDel(null)}>Cancel</button>
-              <button className="rounded-lg bg-[#ec6a3c] px-4 py-2 text-sm font-semibold text-white" onClick={() => { void remove(confirmDel); setConfirmDel(null) }}>Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmDel && <Confirm
+        title="Are you sure?"
+        text={`This memory will be permanently deleted${confirmDel.kind === 'photo' && !confirmDel.photoUrl ? ' from this browser' : ''}. This can't be undone.`}
+        confirmLabel="Remove"
+        onNo={() => setConfirmDel(null)}
+        onYes={() => { void remove(confirmDel); setConfirmDel(null) }}
+      />}
       {view && viewIdx >= 0 && (
         <div className="fixed inset-0 z-[55] flex flex-col items-center justify-center bg-black/90 p-6" onClick={e => { e.stopPropagation(); setView(null) }}>
           <Photo id={view} photoUrl={photos[viewIdx].photoUrl} className="max-h-[80vh] max-w-full object-contain shadow-2xl" />

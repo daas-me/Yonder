@@ -1,10 +1,8 @@
 import { useEffect, useId, useState } from 'react'
-import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, planned as plannedCost, PlusIcon, sortActs, THEMES, type Trip, uid, useModalScrollLock } from '../../shared'
+import { type Activity, type Cat, catOf, CATS, currencyCode, dayList, type Extra, formatAmount, fmt, fmtTime, fromBaseCurrency, php, phpCompact, planned as plannedCost, PlusIcon, sortActs, THEMES, toBaseCurrency, type Trip, uid, useModalScrollLock } from '../../shared'
 import { incompleteOwnOrderCount, travelerCostBreakdown } from '../../shared'
 
 const r2 = (v: string) => { const n = Math.round(Math.max(0, Number(v) || 0) * 100) / 100; return Math.min(n, 9999999999.99) }
-const phpCompact = (v: number) => `₱${Math.round(v).toLocaleString('en-PH')}`
-
 export function budgetStats(t: Trip) {
   const ex = t.extras ?? []
   const actEst = t.activities.reduce((s, a) => s + plannedCost(a), 0)
@@ -242,8 +240,8 @@ export function ExtrasEditor({ items, onChange, readOnly, dense }: { items: Extr
                       {(Object.keys(CATS) as Cat[]).map(c => <option key={c} value={c}>{c === 'other' ? 'Misc / Other' : CATS[c].label}</option>)}
                     </select>
                   </td>
-                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" value={x.est} onChange={e => set(x.id, { est: r2(e.target.value) })} /></td>
-                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" placeholder="—" value={x.actual ?? ''} onChange={e => set(x.id, { actual: e.target.value === '' ? undefined : r2(e.target.value) })} /></td>
+                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" value={fromBaseCurrency(x.est).toFixed(2)} onChange={e => set(x.id, { est: toBaseCurrency(r2(e.target.value)) })} /></td>
+                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" placeholder="—" value={x.actual == null ? '' : fromBaseCurrency(x.actual).toFixed(2)} onChange={e => set(x.id, { actual: e.target.value === '' ? undefined : toBaseCurrency(r2(e.target.value)) })} /></td>
                   <td className="text-center">{!readOnly && <button type="button" aria-label="Remove" className="rounded px-2 py-1 text-clay hover:bg-clay/10" onClick={() => onChange(items.filter(i => i.id !== x.id))}>✕</button>}</td>
                 </tr>
               ))}
@@ -303,14 +301,14 @@ export function LimitBar({ t }: { t: Trip }) {
 const varCell = (est: number, act?: number) => {
   if (act == null) return <td className="px-3 py-2 text-right text-ink/30">—</td>
   const d = act - est
-  return <td className={`px-3 py-2 text-right tabular-nums ${d > 0 ? 'text-clay' : d < 0 ? 'text-pine' : 'text-ink/50'}`}>{d === 0 ? '0.00' : `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}</td>
+  return <td className={`px-3 py-2 text-right tabular-nums ${d > 0 ? 'text-clay' : d < 0 ? 'text-pine' : 'text-ink/50'}`}>{d === 0 ? '0.00' : `${d > 0 ? '+' : '−'}${formatAmount(Math.abs(d))}`}</td>
 }
-const num = (v: number) => v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const num = (v: number) => formatAmount(v)
 
 export function budgetCsvRows(trip: Trip) {
   const stats = budgetStats(trip)
   const days = dayList(trip.start, trip.end)
-  const rows = [['Section', 'Day', 'Date', 'Time', 'Item', 'Category', 'Budgeted (PHP)', 'Actual (PHP)', 'Variance (PHP)']]
+  const rows = [['Section', 'Day', 'Date', 'Time', 'Item', 'Category', `Budgeted (${currencyCode()})`, `Actual (${currencyCode()})`, `Variance (${currencyCode()})`]]
   const extras = trip.extras ?? []
   sortActs(trip.activities).forEach(activity => {
     const planned = plannedCost(activity)
@@ -321,22 +319,22 @@ export function budgetCsvRows(trip: Trip) {
       activity.time,
       activity.title,
       CATS[catOf(activity)].label,
-      planned.toFixed(2),
-      activity.actual?.toFixed(2) ?? '',
-      activity.actual != null ? (activity.actual - planned).toFixed(2) : '',
+      formatAmount(planned),
+      activity.actual != null ? formatAmount(activity.actual) : '',
+      activity.actual != null ? formatAmount(activity.actual - planned) : '',
     ])
   })
   extras.forEach(extra => rows.push([
     'Misc / Other', '', '', '', extra.label, CATS[extra.category].label,
-    extra.est.toFixed(2), extra.actual?.toFixed(2) ?? '',
-    extra.actual != null ? (extra.actual - extra.est).toFixed(2) : '',
+    formatAmount(extra.est), extra.actual != null ? formatAmount(extra.actual) : '',
+    extra.actual != null ? formatAmount(extra.actual - extra.est) : '',
   ]))
-  rows.push(['TOTAL', '', '', '', '', '', stats.planned.toFixed(2), stats.actual.toFixed(2), (stats.actual - stats.planned).toFixed(2)])
-  if (stats.limit) rows.push(['BUDGET LIMIT', '', '', '', '', '', stats.limit.toFixed(2), '', ''])
+  rows.push(['TOTAL', '', '', '', '', '', formatAmount(stats.planned), formatAmount(stats.actual), formatAmount(stats.actual - stats.planned)])
+  if (stats.limit) rows.push(['BUDGET LIMIT', '', '', '', '', '', formatAmount(stats.limit), '', ''])
   if (trip.groupTrip) {
-    rows.push(['PER PERSON', '', '', '', 'Traveler', 'Shared (PHP)', 'Own orders (PHP)', 'Planned total (PHP)', 'Actual (PHP)'])
+    rows.push(['PER PERSON', '', '', '', 'Traveler', `Shared (${currencyCode()})`, `Own orders (${currencyCode()})`, `Planned total (${currencyCode()})`, `Actual (${currencyCode()})`])
     travelerCostBreakdown(trip).forEach(row => rows.push([
-      'Traveler', '', '', '', row.label, row.shared.toFixed(2), row.ownOrders.toFixed(2), row.planned.toFixed(2), row.actual.toFixed(2),
+      'Traveler', '', '', '', row.label, formatAmount(row.shared), formatAmount(row.ownOrders), formatAmount(row.planned), formatAmount(row.actual),
     ]))
   }
   return rows
@@ -378,7 +376,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line2 bg-sand/70 px-6 py-4 shadow-[0_2px_8px_-6px_rgba(22,32,29,0.28)]">
-          <div><h3 id={titleId} className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in PHP</p></div>
+          <div><h3 id={titleId} className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in {currencyCode()}</p></div>
           <div className="flex gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost px-3" aria-label="Close" onClick={onClose}>✕</button></div>
         </div>
         <div className="modal-scroll min-h-0 flex-1 space-y-8 overflow-auto p-6">

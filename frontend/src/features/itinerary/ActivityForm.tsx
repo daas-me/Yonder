@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import { activityShareMode, categoryShareMode, type Activity, type Cat, CATS, type CostShareMode, Field, fmt, Modal, THEMES, type Trip, uid } from '../../shared'
+import { activityShareMode, categoryShareMode, display, fromBaseCurrency, type Activity, type Cat, CATS, type CostShareMode, Field, fmt, Modal, php, THEMES, toBaseCurrency, type Trip, uid } from '../../shared'
 
 export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Trip; act?: Activity; initial?: Partial<Activity>; onSave: (a: Activity) => void; onClose: () => void }) {
   const src: Partial<Activity> | undefined = act ?? initial
-  const [f, setF] = useState({ category: src?.category ?? ('sights' as Cat), title: src?.title ?? '', date: src?.date ?? trip.start, time: src?.time ?? '09:00', location: src?.location ?? '', cost: src?.cost != null ? String(src.cost) : '0', actual: act?.actual != null ? String(act.actual) : '', notes: src?.notes ?? '' })
+  const [f, setF] = useState({ category: src?.category ?? ('sights' as Cat), title: src?.title ?? '', date: src?.date ?? trip.start, time: src?.time ?? '09:00', location: src?.location ?? '', cost: src?.cost != null ? fromBaseCurrency(src.cost).toFixed(2) : '0', actual: act?.actual != null ? fromBaseCurrency(act.actual).toFixed(2) : '', notes: src?.notes ?? '' })
   const [shareMode, setShareMode] = useState<CostShareMode>(() => act ? activityShareMode(trip, act) : categoryShareMode(trip, f.category))
   const [sharedTravelerIds, setSharedTravelerIds] = useState<string[]>(() => act?.sharedTravelerIds?.length
     ? act.sharedTravelerIds
     : (trip.travelers ?? []).map(traveler => traveler.id))
   const [personalAmounts, setPersonalAmounts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(Object.entries(act?.personalAmounts ?? {}).map(([id, amount]) => [id, String(amount)])))
+    Object.fromEntries(Object.entries(act?.personalAmounts ?? {}).map(([id, amount]) => [id, fromBaseCurrency(amount).toFixed(2)])))
   const [err, setErr] = useState<Record<string, string>>({})
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,13 +27,20 @@ export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Tr
     if (f.notes.length > 1000) er.notes = 'Max 1,000 characters.'
     setErr(er)
     if (!Object.keys(er).length) {
-      const amounts = Object.fromEntries(enteredAmounts.map(([id, amount]) => [id, Number(amount)]))
+      const amounts = Object.fromEntries(enteredAmounts.map(([id, amount]) => {
+        const existingAmount = act?.personalAmounts?.[id]
+        return [id, existingAmount != null && amount === fromBaseCurrency(existingAmount).toFixed(2) ? existingAmount : toBaseCurrency(Number(amount))]
+      }))
       const completeAmounts = trip.groupTrip && shareMode === 'own' && (trip.travelers ?? []).every(({ id }) => Object.prototype.hasOwnProperty.call(amounts, id))
-      const effectiveCost = completeAmounts ? Object.values(amounts).reduce((sum, amount) => sum + amount, 0) : c
+      const unchangedPersonalAmounts = enteredAmounts.every(([id, amount]) => act?.personalAmounts?.[id] != null && amount === fromBaseCurrency(act.personalAmounts[id]).toFixed(2))
+      const cost = src?.cost != null && f.cost === fromBaseCurrency(src.cost).toFixed(2) ? src.cost : toBaseCurrency(c)
+      const effectiveCost = completeAmounts
+        ? unchangedPersonalAmounts && act?.cost != null ? act.cost : Object.values(amounts).reduce((sum, amount) => sum + amount, 0)
+        : cost
       onSave({
         ...(act ?? initial),
         id: act?.id ?? uid(),
-        actual: f.actual ? Number(f.actual) : undefined,
+        actual: f.actual ? act?.actual != null && f.actual === fromBaseCurrency(act.actual).toFixed(2) ? act.actual : toBaseCurrency(Number(f.actual)) : undefined,
         category: f.category,
         title: f.title.trim(),
         date: f.date,
@@ -64,9 +71,9 @@ export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Tr
         <Field label="Location" error={err.location}><input className="input" value={f.location} onChange={e => setF({ ...f, location: e.target.value })} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Field label={`Estimated cost (PHP${trip.groupTrip && shareMode === 'own' ? ', sum of each person' : ''})`} error={err.cost}><input className="input" inputMode="decimal" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} /></Field>
+            <Field label={`Estimated cost (${display.currency}${trip.groupTrip && shareMode === 'own' ? ', sum of each person' : ''})`} error={err.cost}><input className="input" inputMode="decimal" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} /></Field>
           </div>
-          <Field label="Actual spent (optional)" error={err.actual}><input className="input" inputMode="decimal" value={f.actual} placeholder="Log after" onChange={e => setF({ ...f, actual: e.target.value })} /></Field>
+          <Field label={`Actual spent (${display.currency}, optional)`} error={err.actual}><input className="input" inputMode="decimal" value={f.actual} placeholder="Log after" onChange={e => setF({ ...f, actual: e.target.value })} /></Field>
         </div>
         {trip.groupTrip && <>
           <section className="rounded-xl border border-line2 p-3.5">
@@ -87,11 +94,11 @@ export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Tr
                     return <button key={traveler.id} type="button" aria-pressed={selected} onClick={() => setSharedTravelerIds(ids => selected ? ids.filter(id => id !== traveler.id) : [...ids, traveler.id])} className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-medium transition ${selected ? '' : 'border-line2 text-ink/55'}`} style={selected ? { borderColor: color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color } : undefined}><span aria-hidden="true" className="inline-grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white" style={{ backgroundColor: color }}>{label.slice(0, 1).toUpperCase()}</span><span>{label}</span></button>
                   })}
                 </div>
-                {sharedTravelerIds.length > 0 && <p className="mt-2 text-xs text-ink/55">{`₱${(Number(f.cost || 0) / sharedTravelerIds.length).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} each across ${sharedTravelerIds.length} of ${(trip.travelers ?? []).length} travelers`}</p>}
+                {sharedTravelerIds.length > 0 && <p className="mt-2 text-xs text-ink/55">{`${php(toBaseCurrency(Number(f.cost || 0) / sharedTravelerIds.length))} each across ${sharedTravelerIds.length} of ${(trip.travelers ?? []).length} travelers`}</p>}
               </>
             ) : (
               <>
-                <p className="mt-1 text-xs text-ink/55">Enter what each traveler ordered or paid. Leave zero for anyone who did not participate. Actual spending follows these proportions.</p>
+                <p className="mt-1 text-xs text-ink/55">Enter what each traveler ordered or paid in {display.currency}. Leave zero for anyone who did not participate. Actual spending follows these proportions.</p>
                 <div className="mt-3 divide-y divide-line">
                   {(trip.travelers ?? []).map((traveler, index) => {
                     const label = traveler.name.trim() || (index === 0 ? 'You' : `Traveler ${index + 1}`)
@@ -109,7 +116,7 @@ export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Tr
                   })}
                 </div>
                 {err.payers && <p className="mt-2 text-xs text-clay">{err.payers}</p>}
-                <p className="mt-3 flex justify-between border-t border-line pt-2 text-xs text-ink/55"><span>Total, used as the estimated cost</span><strong className="text-ink">{f.cost === '' ? 'PHP 0.00' : `PHP ${Number(f.cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</strong></p>
+                <p className="mt-3 flex justify-between border-t border-line pt-2 text-xs text-ink/55"><span>Total, used as the estimated cost</span><strong className="text-ink">{php(toBaseCurrency(Number(f.cost || 0)))}</strong></p>
               </>
             )}
             {err.payers && shareMode === 'equal' && <p className="mt-2 text-xs text-clay">{err.payers}</p>}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DEFAULT_CATEGORY_SHARE_MODES, type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, Field, FieldLabel, fmt, fmtTime, isoOf, Modal, php, sortActs, THEMES, type Trip, uid } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, display, Field, FieldLabel, fmt, fmtTime, fromBaseCurrency, isoOf, Modal, php, sortActs, THEMES, toBaseCurrency, type Trip, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 import { extractText } from './extractText'
 import { type Draft, type Parsed, parseItinerary, SAMPLE } from './parser'
@@ -46,7 +46,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
       groupTrip,
       travelers: groupTrip ? Array.from({ length: parsed.travelerCount! }, (_, index) => ({ id: uid(), name: index === 0 ? 'You' : '' })) : [],
       categoryShareModes: groupTrip ? DEFAULT_CATEGORY_SHARE_MODES : {},
-      color: plan.color, budget: /^\d+(\.\d{1,2})?$/.test(plan.limit) && +plan.limit > 0 ? +plan.limit : undefined, extras: plan.extras.filter(x => x.label.trim()) })
+      color: plan.color, budget: /^\d+(\.\d{1,2})?$/.test(plan.limit) && +plan.limit > 0 ? toBaseCurrency(+plan.limit) : undefined, extras: plan.extras.filter(x => x.label.trim()) })
   }
 
   return (
@@ -76,7 +76,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="rounded-lg bg-moss p-3 text-sm text-ink/70">Found <b>{parsed.acts.length}</b> activities{parsed.travelerCount ? <> and a group of <b>{parsed.travelerCount} travelers</b></> : ''}. Check the details, untick anything that's wrong, then create the trip.</p>
+          <p className="rounded-lg bg-moss p-3 text-sm text-ink/70">Found <b>{parsed.acts.length}</b> activities{parsed.travelerCount ? <> and a group of <b>{parsed.travelerCount} travelers</b></> : ''}. Imported activity amounts are read as PHP and converted for display. Check the details, untick anything that's wrong, then create the trip.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Trip name"><input className="input" value={meta.name} onChange={e => setMeta({ ...meta, name: e.target.value })} /></Field>
             <Field label="Destination"><input className="input" value={meta.destination} onChange={e => setMeta({ ...meta, destination: e.target.value })} /></Field>
@@ -86,13 +86,13 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
             <summary className="cursor-pointer text-sm font-semibold text-ink">Budget & look</summary>
             <div className="mt-3 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Budget limit (PHP, optional)"><input className="input" inputMode="decimal" placeholder="e.g. 20000" value={plan.limit} onChange={e => setPlan({ ...plan, limit: e.target.value })} /></Field>
+                <Field label={`Budget limit (${display.currency}, optional)`}><input className="input" inputMode="decimal" placeholder="e.g. 20000" value={plan.limit} onChange={e => setPlan({ ...plan, limit: e.target.value })} /></Field>
                 <Field label="Trip color"><div className="flex flex-wrap gap-1.5 pt-1">{THEMES.map(c => <button type="button" key={c} aria-label={`Theme ${c}`} onClick={() => setPlan({ ...plan, color: c })} className={`h-7 w-7 rounded-full ring-offset-2 ring-offset-sand ${plan.color === c ? 'ring-2 ring-ink' : ''}`} style={{ background: c }} />)}</div></Field>
               </div>
               <div><FieldLabel text="Miscellaneous spending" /><ExtrasEditor items={plan.extras} onChange={x => setPlan({ ...plan, extras: x })} /></div>
             </div>
           </details>
-          {range && <p className="text-sm text-ink/60">{fmt(range.start, { month: 'long', day: 'numeric', year: 'numeric' })} – {fmt(range.end, { month: 'long', day: 'numeric', year: 'numeric' })} · budget {php(kept.reduce((s, a) => s + a.cost, 0) + plan.extras.reduce((s, x) => s + x.est, 0))}{plan.limit && +plan.limit > 0 ? ` of ${php(+plan.limit)} limit` : ''}</p>}
+          {range && <p className="text-sm text-ink/60">{fmt(range.start, { month: 'long', day: 'numeric', year: 'numeric' })} – {fmt(range.end, { month: 'long', day: 'numeric', year: 'numeric' })} · budget {php(kept.reduce((s, a) => s + a.cost, 0) + plan.extras.reduce((s, x) => s + x.est, 0))}{plan.limit && +plan.limit > 0 ? ` of ${php(toBaseCurrency(+plan.limit))} limit` : ''}</p>}
           <ul className="max-h-80 space-y-2 overflow-auto pr-1">
             {sortActs(resolved as Activity[]).map(a0 => {
               const a = a0 as unknown as Draft & { date: string }
@@ -110,7 +110,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
                       <input className="w-full bg-transparent font-semibold outline-none" value={a.title} onChange={e => upd(a.id, { title: e.target.value })} />
                       <div className="flex gap-2">
                         <input className="min-w-0 flex-1 bg-transparent text-sm text-ink/60 outline-none" value={a.location} onChange={e => upd(a.id, { location: e.target.value })} />
-                        <input className="w-24 bg-transparent text-right text-sm outline-none" inputMode="decimal" value={a.cost} onChange={e => upd(a.id, { cost: Math.max(0, Number(e.target.value) || 0) })} />
+                        <input className="w-24 bg-transparent text-right text-sm outline-none" inputMode="decimal" value={fromBaseCurrency(a.cost).toFixed(2)} onChange={e => upd(a.id, { cost: toBaseCurrency(Math.max(0, Number(e.target.value) || 0)) })} />
                       </div>
                       {a.notes && <div className="text-xs italic text-ink/50">{a.notes}</div>}
                     </div>

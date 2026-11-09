@@ -9,7 +9,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "checklist_items")
+@Table(name = "checklist_items", schema = "yonder")
 public class ChecklistEntity {
     @Id
     private String id;

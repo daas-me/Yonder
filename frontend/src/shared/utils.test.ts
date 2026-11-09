@@ -1,7 +1,7 @@
 // Runtime validation coverage for: trip budgeting and schedule ordering.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PREFS, prefsOf, type Activity, type Trip } from './model'
-import { daysBetween, defaultTripCover, display, fmtTemp, fmtTime, sortActs, total } from './utils'
+import { daysBetween, defaultTripCover, display, fmtTemp, fmtTime, fromBaseCurrency, php, sortActs, toBaseCurrency, total } from './utils'
 import { incompleteOwnOrderCount, travelerCostBreakdown } from './groupTrips'
 
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
@@ -35,7 +35,20 @@ describe('trip planning utilities', () => {
     expect(prefs.notify.budget).toBe(false)
     expect(prefs.notify.tripSoon).toBe(true)
     expect(prefs.packing).toEqual(['Valid ID'])
+    expect(prefs.currency).toBe('PHP')
     expect(DEFAULT_PREFS.notify.budget).toBe(true)
+  })
+
+  it('converts stored PHP amounts to the selected currency and back', () => {
+    display.currency = 'USD'
+    display.currencyRate = 0.015829
+
+    expect(fromBaseCurrency(1000)).toBeCloseTo(15.829)
+    expect(toBaseCurrency(15.83)).toBe(1000.06)
+    expect(php(1000)).toBe('$15.83')
+
+    display.currency = 'PHP'
+    display.currencyRate = 1
   })
 
   it('formats times and temperatures using the active display preferences', () => {

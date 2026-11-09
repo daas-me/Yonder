@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.yonder.app.places.config.GooglePlacesProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -18,7 +19,8 @@ class GooglePlacesServiceTests {
     void nearbyMapsGooglePlaceDetailsAndKeepsApiKeyOnServerRequest() {
         RestClient.Builder restClientBuilder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
-        GooglePlacesService places = new GooglePlacesService(restClientBuilder.build(), "server-only-key");
+        GooglePlacesService places = new GooglePlacesService(
+                restClientBuilder.build(), new GooglePlacesProperties("server-only-key"));
         server.expect(requestTo("https://places.googleapis.com/v1/places:searchNearby"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("X-Goog-Api-Key", "server-only-key"))
@@ -54,7 +56,8 @@ class GooglePlacesServiceTests {
 
     @Test
     void nearbyFailsExplicitlyWhenPlacesKeyIsNotConfigured() {
-        GooglePlacesService places = new GooglePlacesService(RestClient.create(), "");
+        GooglePlacesService places = new GooglePlacesService(
+                RestClient.create(), new GooglePlacesProperties(""));
 
         assertThatThrownBy(() -> places.nearby(16.4, 120.6))
                 .isInstanceOf(PlacesUnavailableException.class)

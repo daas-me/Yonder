@@ -12,9 +12,23 @@ export type Check = { id: string; text: string; done: boolean }
 export type TripTraveler = { id: string; name: string }
 export type CostShareMode = 'equal' | 'own'
 export type NotifyPrefs = { tripSoon: boolean; soonDays: number; packing: boolean; budget: boolean; budgetAt: number; logSpending: boolean; browser: boolean }
+export const CURRENCIES = [
+  { code: 'PHP', name: 'Philippine peso' }, { code: 'USD', name: 'US dollar' }, { code: 'EUR', name: 'Euro' },
+  { code: 'GBP', name: 'British pound' }, { code: 'JPY', name: 'Japanese yen' }, { code: 'AUD', name: 'Australian dollar' },
+  { code: 'CAD', name: 'Canadian dollar' }, { code: 'SGD', name: 'Singapore dollar' }, { code: 'HKD', name: 'Hong Kong dollar' },
+  { code: 'NZD', name: 'New Zealand dollar' }, { code: 'CHF', name: 'Swiss franc' }, { code: 'CNY', name: 'Chinese yuan' },
+  { code: 'KRW', name: 'South Korean won' }, { code: 'THB', name: 'Thai baht' }, { code: 'MYR', name: 'Malaysian ringgit' },
+  { code: 'IDR', name: 'Indonesian rupiah' }, { code: 'INR', name: 'Indian rupee' }, { code: 'ZAR', name: 'South African rand' },
+  { code: 'SEK', name: 'Swedish krona' }, { code: 'NOK', name: 'Norwegian krone' }, { code: 'DKK', name: 'Danish krone' },
+  { code: 'MXN', name: 'Mexican peso' }, { code: 'BRL', name: 'Brazilian real' }, { code: 'TRY', name: 'Turkish lira' },
+  { code: 'PLN', name: 'Polish zloty' }, { code: 'CZK', name: 'Czech koruna' }, { code: 'ILS', name: 'Israeli new shekel' },
+  { code: 'HUF', name: 'Hungarian forint' }, { code: 'ISK', name: 'Icelandic krona' }, { code: 'RON', name: 'Romanian leu' },
+] as const
+export type CurrencyCode = (typeof CURRENCIES)[number]['code']
 export type Prefs = {
   clock: '12' | '24'
   temp: 'c' | 'f'
+  currency: CurrencyCode
   tripType: 'solo' | 'group'
   pax: number
   companions: string[]
@@ -25,10 +39,11 @@ export type Prefs = {
 }
 export type ThemePref = 'light' | 'dark' | 'system'
 export const DEFAULT_NOTIFY: NotifyPrefs = { tripSoon: true, soonDays: 3, packing: true, budget: true, budgetAt: 90, logSpending: true, browser: false }
-export const DEFAULT_PREFS: Prefs = { clock: '12', temp: 'c', tripType: 'solo', pax: 2, companions: [], splitRules: {}, packing: [], notify: DEFAULT_NOTIFY }
+export const DEFAULT_PREFS: Prefs = { clock: '12', temp: 'c', currency: 'PHP', tripType: 'solo', pax: 2, companions: [], splitRules: {}, packing: [], notify: DEFAULT_NOTIFY }
 export const prefsOf = (prefs?: Partial<Prefs> | null): Prefs => ({
   ...DEFAULT_PREFS,
   ...prefs,
+  currency: CURRENCIES.find(({ code }) => code === prefs?.currency)?.code ?? DEFAULT_PREFS.currency,
   companions: prefs?.companions ?? DEFAULT_PREFS.companions,
   splitRules: prefs?.splitRules ?? DEFAULT_PREFS.splitRules,
   packing: prefs?.packing ?? DEFAULT_PREFS.packing,

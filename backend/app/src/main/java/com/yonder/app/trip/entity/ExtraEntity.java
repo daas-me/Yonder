@@ -11,7 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "trip_extras")
+@Table(name = "trip_extras", schema = "yonder")
 public class ExtraEntity {
     @Id
     private String id;

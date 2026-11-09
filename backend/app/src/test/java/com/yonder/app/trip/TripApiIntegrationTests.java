@@ -231,6 +231,26 @@ class TripApiIntegrationTests {
     }
 
     @Test
+    void unknownAccountsAndIncorrectPasswordsReturnTheSameLoginError() throws Exception {
+        String unknownAccount = """
+                {"email":"missing@yonder.ph","password":"testpass123"}
+                """;
+        String incorrectPassword = """
+                {"email":"trip-api-test@yonder.ph","password":"wrongpass123"}
+                """;
+
+        mvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(unknownAccount))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Incorrect email or password"));
+
+        mvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(incorrectPassword))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Incorrect email or password"));
+    }
+
+    @Test
     void unauthenticatedRequestsReturnStructuredApiErrors() throws Exception {
         mvc.perform(get("/api/trips"))
                 .andExpect(status().isUnauthorized())

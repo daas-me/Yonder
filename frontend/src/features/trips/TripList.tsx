@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { assetUrl } from '../../services'
-import { defaultTripCover, daysBetween, fmt, php, PlusIcon, Tag, total, totalActual, type Trip, type User } from '../../shared'
+import { defaultTripCover, daysBetween, fmt, php, phpCompact, PlusIcon, Tag, total, totalActual, type Trip, type User } from '../../shared'
 import CoverPicker from './CoverPicker'
 
 /* Short city name for ticket labels, e.g. "Baguio City, Benguet" -> "Baguio City" */
@@ -59,7 +59,7 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
           <div className="flex items-center rounded-2xl border border-dashed border-line2 p-5"><Tag className="text-ink/50">No upcoming departures. Plan one and the countdown starts.</Tag></div>
         )}
         <div className="soft grid grid-cols-3 overflow-hidden rounded-2xl border border-line bg-card">
-          {[['Trips', String(trips.length)], ['Upcoming', String(upcoming)], ['Budgeted', php(budget).replace('PHP ', '₱').replace(/\.\d\d$/, '')]].map(([l, v], i) => (
+          {[['Trips', String(trips.length)], ['Upcoming', String(upcoming)], ['Budgeted', phpCompact(budget)]].map(([l, v], i) => (
             <div key={l} className={`flex flex-col justify-between p-4 ${i ? 'border-l border-line' : ''} `}>
               <Tag className="opacity-60">{l}</Tag>
               <div className="mt-3 truncate font-display text-2xl">{v}</div>
@@ -136,7 +136,7 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
                   <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-line2 pt-3">
                     <div><Tag className="text-ink/45">Depart</Tag><div className="text-sm font-semibold tabular-nums">{fmt(t.start, { day: '2-digit', month: 'short' }).toUpperCase()}</div></div>
                     <div><Tag className="text-ink/45">Stops</Tag><div className="text-sm font-semibold tabular-nums">{t.activities.length}</div></div>
-                    <div className="text-right"><Tag className="text-ink/45">Budget</Tag><div className={`text-sm font-semibold tabular-nums ${over ? 'text-clay' : ''}`}>{php(total(t)).replace('PHP ', '₱').replace(/\.\d\d$/, '')}</div></div>
+                    <div className="text-right"><Tag className="text-ink/45">Budget</Tag>                    <div className={`text-sm font-semibold tabular-nums ${over ? 'text-clay' : ''}`}>{phpCompact(total(t))}</div></div>
                   </div>
                   <div className="barcode mt-4 h-5 w-full" aria-hidden />
                 </div>
@@ -180,9 +180,9 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
                 <div className="flex shrink-0 flex-row items-center justify-between gap-4 border-t border-dashed border-line2 p-5 sm:w-44 sm:flex-col sm:items-stretch sm:border-t-0">
                   <div>
                     <Tag className="text-ink/45">Budget</Tag>
-                    <div className={`font-display text-xl leading-tight ${over ? 'text-clay' : ''}`}>{php(total(t)).replace('PHP ', '₱')}</div>
-                    {t.budget ? <Tag className={over ? 'text-clay' : 'text-ink/50'}>{over ? 'Over' : 'Limit'} ₱{t.budget.toLocaleString('en-PH')}</Tag> : <Tag className="text-ink/40">No limit</Tag>}
-                    {totalActual(t) > 0 && <div><Tag className="text-ink/50">Spent ₱{totalActual(t).toLocaleString('en-PH')}</Tag></div>}
+                    <div className={`font-display text-xl leading-tight ${over ? 'text-clay' : ''}`}>{php(total(t))}</div>
+                    {t.budget ? <Tag className={over ? 'text-clay' : 'text-ink/50'}>{over ? 'Over' : 'Limit'} {phpCompact(t.budget)}</Tag> : <Tag className="text-ink/40">No limit</Tag>}
+                    {totalActual(t) > 0 && <div><Tag className="text-ink/50">Spent {phpCompact(totalActual(t))}</Tag></div>}
                   </div>
                   <div className="barcode h-8 w-24 sm:w-full" aria-hidden />
                 </div>

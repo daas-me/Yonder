@@ -1,14 +1,14 @@
-CREATE TABLE users (
+CREATE TABLE yonder.users (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
     email VARCHAR(254) NOT NULL,
     password_hash VARCHAR(100) NOT NULL,
     home_city VARCHAR(120) NOT NULL DEFAULT '',
-    created_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT uq_users_email UNIQUE (email)
 );
 
-CREATE TABLE trips (
+CREATE TABLE yonder.trips (
     id VARCHAR(64) PRIMARY KEY,
     user_id VARCHAR(64) NOT NULL,
     name VARCHAR(120) NOT NULL,
@@ -20,14 +20,13 @@ CREATE TABLE trips (
     color VARCHAR(32),
     cover_url VARCHAR(2048),
     tagline VARCHAR(160),
-    latitude DOUBLE,
-    longitude DOUBLE,
-    CONSTRAINT fk_trips_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT ck_trips_date_range CHECK (start_date <= end_date),
-    INDEX idx_trips_user_start (user_id, start_date)
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    CONSTRAINT fk_trips_user FOREIGN KEY (user_id) REFERENCES yonder.users (id) ON DELETE CASCADE,
+    CONSTRAINT ck_trips_date_range CHECK (start_date <= end_date)
 );
 
-CREATE TABLE activities (
+CREATE TABLE yonder.activities (
     id VARCHAR(64) PRIMARY KEY,
     trip_id VARCHAR(64) NOT NULL,
     category VARCHAR(24),
@@ -40,44 +39,46 @@ CREATE TABLE activities (
     status VARCHAR(16),
     notes VARCHAR(1000) NOT NULL DEFAULT '',
     image_url VARCHAR(2048),
-    latitude DOUBLE,
-    longitude DOUBLE,
-    CONSTRAINT fk_activities_trip FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    CONSTRAINT fk_activities_trip FOREIGN KEY (trip_id) REFERENCES yonder.trips (id) ON DELETE CASCADE,
     CONSTRAINT ck_activities_estimated_cost CHECK (estimated_cost >= 0),
-    CONSTRAINT ck_activities_actual_cost CHECK (actual_cost IS NULL OR actual_cost >= 0),
-    INDEX idx_activities_trip_order (trip_id, activity_date, start_time, id)
+    CONSTRAINT ck_activities_actual_cost CHECK (actual_cost IS NULL OR actual_cost >= 0)
 );
 
-CREATE TABLE trip_extras (
+CREATE TABLE yonder.trip_extras (
     id VARCHAR(64) PRIMARY KEY,
     trip_id VARCHAR(64) NOT NULL,
     label VARCHAR(120) NOT NULL,
     category VARCHAR(24) NOT NULL,
     estimated_cost DECIMAL(12, 2) NOT NULL,
     actual_cost DECIMAL(12, 2),
-    CONSTRAINT fk_extras_trip FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
+    CONSTRAINT fk_extras_trip FOREIGN KEY (trip_id) REFERENCES yonder.trips (id) ON DELETE CASCADE,
     CONSTRAINT ck_extras_estimated_cost CHECK (estimated_cost >= 0),
     CONSTRAINT ck_extras_actual_cost CHECK (actual_cost IS NULL OR actual_cost >= 0)
 );
 
-CREATE TABLE checklist_items (
+CREATE TABLE yonder.checklist_items (
     id VARCHAR(64) PRIMARY KEY,
     trip_id VARCHAR(64) NOT NULL,
     item_text VARCHAR(120) NOT NULL,
     done BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT fk_checklist_trip FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+    CONSTRAINT fk_checklist_trip FOREIGN KEY (trip_id) REFERENCES yonder.trips (id) ON DELETE CASCADE
 );
 
-CREATE TABLE memories (
+CREATE TABLE yonder.memories (
     id VARCHAR(64) PRIMARY KEY,
     trip_id VARCHAR(64) NOT NULL,
     activity_id VARCHAR(64),
     kind VARCHAR(8) NOT NULL,
     text VARCHAR(5000) NOT NULL DEFAULT '',
     file_url VARCHAR(2048),
-    created_at TIMESTAMP NOT NULL,
-    edited_at TIMESTAMP,
-    CONSTRAINT fk_memories_trip FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
-    CONSTRAINT fk_memories_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE,
-    INDEX idx_memories_trip (trip_id)
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    edited_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT fk_memories_trip FOREIGN KEY (trip_id) REFERENCES yonder.trips (id) ON DELETE CASCADE,
+    CONSTRAINT fk_memories_activity FOREIGN KEY (activity_id) REFERENCES yonder.activities (id) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_trips_user_start ON yonder.trips (user_id, start_date);
+CREATE INDEX idx_activities_trip_order ON yonder.activities (trip_id, activity_date, start_time, id);
+CREATE INDEX idx_memories_trip ON yonder.memories (trip_id);

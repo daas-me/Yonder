@@ -88,14 +88,15 @@ export function SelectMenu({ value, options, onChange, label, className = '' }: 
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const closeOutside = (event: MouseEvent) => {
-      if (!buttonRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) setOpen(false)
+    const closeOutside = (event: PointerEvent) => {
+      const path = event.composedPath()
+      if (!buttonRef.current || !menuRef.current || (!path.includes(buttonRef.current) && !path.includes(menuRef.current))) setOpen(false)
     }
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', closeOutside)
+    document.addEventListener('pointerdown', closeOutside, true)
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.removeEventListener('mousedown', closeOutside)
+      document.removeEventListener('pointerdown', closeOutside, true)
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [open])
@@ -104,20 +105,22 @@ export function SelectMenu({ value, options, onChange, label, className = '' }: 
     const placeMenu = () => {
       const anchor = buttonRef.current?.getBoundingClientRect()
       if (!anchor) return
-      const edge = 8
+      const edge = 12
       const gap = 8
       const below = window.innerHeight - anchor.bottom - edge - gap
       const above = anchor.top - edge - gap
-      const menuHeight = Math.min(menuRef.current?.scrollHeight ?? 0, Math.max(below, above))
+      const maxMenuHeight = Math.min(320, window.innerHeight * 0.45)
+      const menuHeight = Math.min(menuRef.current?.scrollHeight ?? 0, maxMenuHeight, Math.max(below, above))
       const opensAbove = below < menuHeight && above > below
       const width = Math.min(Math.max(anchor.width, 176), window.innerWidth - edge * 2)
       const left = Math.max(edge, Math.min(anchor.right - width, window.innerWidth - width - edge))
+      const availableHeight = Math.max(0, opensAbove ? above : below)
       setMenuStyle({
         position: 'fixed',
         left,
         top: opensAbove ? Math.max(edge, anchor.top - gap - menuHeight) : anchor.bottom + gap,
         width,
-        maxHeight: Math.max(0, opensAbove ? above : below),
+        maxHeight: Math.min(maxMenuHeight, availableHeight),
         zIndex: 60,
       })
     }
@@ -146,24 +149,32 @@ export function SelectMenu({ value, options, onChange, label, className = '' }: 
         <svg aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink/45 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 10 5 5 5-5" /></svg>
       </button>
       {open && createPortal(
-        <div ref={menuRef} role="listbox" aria-label={label} style={menuStyle} className="overflow-y-auto rounded-xl border border-line2 bg-[#f7f8f6] p-1.5 shadow-lg dark:bg-[#18211f]">
-          {options.map(option => {
-            const active = option.value === value
-            return (
-              <button
-                type="button"
-                role="option"
-                aria-selected={active}
-                key={option.value}
-                onClick={() => { onChange(option.value); setOpen(false) }}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-sm transition ${active ? 'bg-pine/10 font-semibold text-pine' : 'text-ink/70 hover:bg-ink/5 hover:text-ink'}`}
-              >
-                <span className="flex-1">{option.label}</span>
-                {active && <svg aria-hidden="true" className="h-4 w-4 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>}
-              </button>
-            )
-          })}
-        </div>,
+        <>
+          <div
+            aria-hidden="true"
+            className="fixed inset-0"
+            style={{ zIndex: 59 }}
+            onPointerDown={() => setOpen(false)}
+          />
+          <div ref={menuRef} role="listbox" aria-label={label} style={menuStyle} className="overflow-y-auto rounded-xl border border-line2 bg-[#f7f8f6] p-1.5 shadow-lg dark:bg-[#18211f]">
+            {options.map(option => {
+              const active = option.value === value
+              return (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  key={option.value}
+                  onClick={() => { onChange(option.value); setOpen(false) }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-sm transition ${active ? 'bg-pine/10 font-semibold text-pine' : 'text-ink/70 hover:bg-ink/5 hover:text-ink'}`}
+                >
+                  <span className="flex-1">{option.label}</span>
+                  {active && <svg aria-hidden="true" className="h-4 w-4 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>}
+                </button>
+              )
+            })}
+          </div>
+        </>,
         document.body,
       )}
     </div>

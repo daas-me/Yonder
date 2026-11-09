@@ -6,8 +6,8 @@ import { TripView } from '../features/itinerary'
 import { delPhotos, photoIds } from '../features/memories'
 import { NotificationBell } from '../features/notifications'
 import { TripForm, TripList } from '../features/trips'
-import { ApiError, api, assetUrl, readShareToken } from '../services'
-import { Confirm, DEFAULT_PREFS, display, load, Logo, notificationsFor, prefsOf, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
+import { ApiError, api, assetUrl, fetchCurrencyQuote, readShareToken, type CurrencyQuote } from '../services'
+import { Confirm, DEFAULT_PREFS, display, load, Logo, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
 type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
@@ -78,11 +78,31 @@ export default function App() {
   }, [dark, theme])
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const prefsRef = useRef<Prefs>(DEFAULT_PREFS)
+  const [currencyQuote, setCurrencyQuote] = useState<CurrencyQuote | null>({ currency: 'PHP', rate: 1, date: new Date().toISOString().slice(0, 10) })
+  const [currencyError, setCurrencyError] = useState('')
   useEffect(() => {
     const saved = user ? prefsOf(load<Partial<Prefs> | null>(`yonder.prefs.${user.id}`, null)) : DEFAULT_PREFS
     prefsRef.current = saved
     setPrefs(saved)
   }, [user?.id])
+  useEffect(() => {
+    let active = true
+    if (prefs.currency === 'PHP') {
+      setCurrencyQuote({ currency: 'PHP', rate: 1, date: new Date().toISOString().slice(0, 10) })
+      setCurrencyError('')
+    } else {
+      setCurrencyError('')
+      void fetchCurrencyQuote(prefs.currency)
+        .then(quote => { if (active) setCurrencyQuote(quote) })
+        .catch(error => { if (active) setCurrencyError(`${error instanceof Error ? error.message : 'Exchange rates are temporarily unavailable.'} Amounts remain displayed in PHP until a rate is available.`) })
+    }
+    return () => { active = false }
+  }, [prefs.currency])
+  const ensureCurrencyRate = async (currency: CurrencyCode) => {
+    const quote = await fetchCurrencyQuote(currency)
+    setCurrencyQuote(quote)
+    setCurrencyError('')
+  }
   const savePrefs = (patch: Partial<Prefs>) => {
     const next = prefsOf({
       ...prefsRef.current,
@@ -97,6 +117,8 @@ export default function App() {
   const packingList = () => prefsRef.current.packing.map(text => ({ id: uid(), text, done: false }))
   display.clock24 = prefs.clock === '24'
   display.fahrenheit = prefs.temp === 'f'
+  display.currency = currencyQuote?.currency === prefs.currency ? prefs.currency : 'PHP'
+  display.currencyRate = currencyQuote?.currency === prefs.currency ? currencyQuote.rate : 1
   const mine = user ? trips.filter(trip => trip.ownerId === user.id) : []
   const allNotes = user ? notificationsFor(mine, prefs.notify) : []
   const [dismissedState, setDismissedState] = useState<{ userId: string; ids: string[] }>({ userId: '', ids: [] })
@@ -432,7 +454,8 @@ export default function App() {
         ) : (
           <div className="py-20 text-center"><div className="text-sm text-clay">Error 404</div><h2 className="mt-1 font-display text-3xl">Trip not found</h2><button className="btn btn-primary mt-6" onClick={() => setView({ page: 'trips' })}>Back to trips</button></div>
         ))}
-        {view.page === 'account' && <AccountPage user={user} trips={mine} prefs={prefs} theme={theme} notes={allNotes} initialTab={view.tab} onPrefs={savePrefs} onTheme={setTheme}
+        {view.page === 'account' && <AccountPage user={user} trips={mine} prefs={prefs} theme={theme} notes={allNotes} initialTab={view.tab} onPrefs={savePrefs} onEnsureCurrency={ensureCurrencyRate}
+          currencyRateDate={currencyQuote?.currency === prefs.currency ? currencyQuote.date : undefined} currencyError={currencyError} onTheme={setTheme}
           onSave={async profile => {
             const saved = await api.updateProfile(profile)
             setUser(currentUser => currentUser ? { ...saved, avatarColor: currentUser.avatarColor } : saved)

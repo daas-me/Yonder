@@ -104,6 +104,23 @@ h1.font-display { font-weight: 800; line-height: 1.02; }
 .trip-confirm-description { animation: confirmTextIn .3s ease-out .26s both; }
 .trip-confirm-button { animation: confirmButtonIn .32s cubic-bezier(.2,.8,.2,1) .34s both; }
 .modal-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+html,
+* {
+  scrollbar-color: color-mix(in srgb, var(--color-pine) 55%, transparent) transparent;
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-pine) 55%, transparent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-pine);
+  background-clip: padding-box;
+}
 .nav-tile {
   color: var(--nav-accent);
   background: color-mix(in srgb, var(--nav-accent) 13%, transparent);
