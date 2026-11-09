@@ -40,7 +40,7 @@ export class ApiError extends Error {
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
 export function assetUrl(url: string) {
-  if (/^(?:data:|https?:)/i.test(url) || baseUrl.startsWith('/')) return url
+  if (/^(?:data:|https?:)/i.test(url) || url.startsWith('/sample-images/') || url.startsWith('/covers/') || baseUrl.startsWith('/')) return url
   return new URL(url, new URL(baseUrl, location.origin).origin).toString()
 }
 

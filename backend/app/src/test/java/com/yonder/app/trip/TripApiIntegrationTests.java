@@ -25,6 +25,7 @@ import org.springframework.web.context.WebApplicationContext;
 import com.yonder.app.auth.dto.RegisterRequest;
 import com.yonder.app.auth.repository.UserRepository;
 import com.yonder.app.auth.service.UserService;
+import com.yonder.app.trip.service.TripService;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import java.nio.file.Files;
@@ -46,11 +47,15 @@ class TripApiIntegrationTests {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private TripService tripService;
+
     @BeforeEach
     void setUp() {
         mvc = MockMvcBuilders.webAppContextSetup(applicationContext).apply(springSecurity()).build();
         users.deleteAll();
         userService.register(new RegisterRequest("Test Traveler", EMAIL, "testpass123"));
+        tripService.deleteAllForUser(EMAIL);
     }
 
     @org.junit.jupiter.api.AfterEach
@@ -63,6 +68,27 @@ class TripApiIntegrationTests {
                 }
             }
         }
+    }
+
+    @Test
+    void newAccountsReceiveAnIllustratedStarterTripTheyCanDelete() throws Exception {
+        String starterEmail = "starter-trip-test@yonder.ph";
+        userService.register(new RegisterRequest("New Traveler", starterEmail, "testpass123"));
+
+        var starter = tripService.list(starterEmail).getFirst();
+        org.junit.jupiter.api.Assertions.assertEquals("Your sample: Baguio weekend", starter.name());
+        org.junit.jupiter.api.Assertions.assertEquals("/sample-images/baguio-cover.svg", starter.cover());
+        org.junit.jupiter.api.Assertions.assertEquals(2, starter.activities().size());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "/sample-images/burnham-park.svg", starter.activities().getFirst().image());
+        org.junit.jupiter.api.Assertions.assertEquals(1, starter.checklist().size());
+        org.junit.jupiter.api.Assertions.assertEquals(1, starter.extras().size());
+
+        mvc.perform(delete("/api/trips/" + starter.id()).with(user(starterEmail)).with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/trips").with(user(starterEmail)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test

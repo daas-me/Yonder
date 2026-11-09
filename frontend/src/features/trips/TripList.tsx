@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { assetUrl } from '../../services'
-import { daysBetween, fmt, php, PlusIcon, Tag, total, totalActual, type Trip, type User } from '../../shared'
+import { defaultTripCover, daysBetween, fmt, php, PlusIcon, Tag, total, totalActual, type Trip, type User } from '../../shared'
 import CoverPicker from './CoverPicker'
 
 /* Short city name for ticket labels, e.g. "Baguio City, Benguet" -> "Baguio City" */
@@ -87,14 +87,27 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
           </div>
         </div>
       )}
-      {trips.length > 0 && shown.length === 0 && <p className="mono py-10 text-center text-xs uppercase tracking-wider text-ink/60">No trips match your search.</p>}
+      {trips.length > 0 && shown.length === 0 && (
+        <section className="mx-auto flex max-w-2xl flex-col items-center rounded-3xl border border-line bg-card/75 px-6 py-8 text-center shadow-sm sm:px-10 sm:py-10">
+          <TripEmptyIllustration />
+          <p className="mono mt-5 text-[10px] uppercase tracking-[.22em] text-ink/45">No matches this time</p>
+          <h2 className="mt-2 font-display text-2xl sm:text-3xl">No trips match these filters</h2>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-ink/60">Try another search or switch back to all your trips.</p>
+          <button className="btn btn-primary mt-5" onClick={() => { setQ(''); setTab('all') }}>Show all trips</button>
+        </section>
+      )}
 
       {trips.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line2 p-14 text-center">
-          <h3 className="font-display text-2xl">No trips yet</h3>
-          <p className="mt-2 text-sm text-ink/60">Somewhere out yonder is waiting. Create your first plan.</p>
-          <div className="mt-6 flex justify-center gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={onImport}>Import from a file</button><button className="btn btn-primary" onClick={onNew}>Plan a trip</button></div>
-        </div>
+        <section className="mx-auto flex max-w-3xl flex-col items-center overflow-hidden rounded-3xl border border-line bg-card/75 px-6 py-8 text-center shadow-sm sm:px-10 sm:py-10">
+          <TripEmptyIllustration />
+          <p className="mono mt-5 text-[10px] uppercase tracking-[.22em] text-ink/45">Your next story starts here</p>
+          <h2 className="mt-2 font-display text-3xl sm:text-4xl">No trips yet</h2>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-ink/60">Start with a blank itinerary or bring in a plan you already have. Your trips will find a home here.</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <button className="btn btn-primary inline-flex items-center gap-2" onClick={onNew}><PlusIcon />Plan your first trip</button>
+            <button className="btn btn-ghost ring-1 ring-line" onClick={onImport}>Import an itinerary</button>
+          </div>
+        </section>
       ) : (
         /* Boarding passes */
         <div className={view === 'grid' ? 'grid gap-5 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-5'}>
@@ -108,7 +121,7 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
               <div key={t.id} role="button" tabIndex={0} onClick={() => onOpen(t.id)} onKeyDown={e => e.key === 'Enter' && onOpen(t.id)}
                 className="soft group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-line bg-card text-left transition hover:border-line2">
                 <div className="relative h-36 shrink-0" style={{ backgroundColor: color }}>
-                  {t.cover && <img src={assetUrl(t.cover)} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                  <img src={assetUrl(t.cover ?? defaultTripCover(t.color ?? color, t.destination))} alt="" className="absolute inset-0 h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                   <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-[#1c1c1e]"><span aria-hidden="true">{tripDays}d · {tripNights}n</span><span className="sr-only">{tripDays} {tripDays === 1 ? 'day' : 'days'}, {tripNights} {tripNights === 1 ? 'night' : 'nights'}</span></span>
                   <span className={`absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium backdrop-blur ${stCls} bg-white/90`}>{st}</span>
@@ -135,7 +148,7 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
                 className="soft group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-line bg-card text-left transition hover:border-line2 sm:flex-row">
                 {/* Cover stub */}
                 <div className="relative h-32 shrink-0 sm:h-auto sm:w-48" style={{ backgroundColor: color }}>
-                  {t.cover && <img src={assetUrl(t.cover)} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                  <img src={assetUrl(t.cover ?? defaultTripCover(t.color ?? color, t.destination))} alt="" className="absolute inset-0 h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                   <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-[#1c1c1e]"><span aria-hidden="true">{tripDays}d · {tripNights}n</span><span className="sr-only">{tripDays} {tripDays === 1 ? 'day' : 'days'}, {tripNights} {tripNights === 1 ? 'night' : 'nights'}</span></span>
                   {t.tagline && <span className="absolute bottom-3 left-3 right-3 line-clamp-2 text-sm font-semibold leading-snug text-white">{t.tagline}</span>}
@@ -180,5 +193,49 @@ export default function TripList({ trips, user, onOpen, onNew, onImport, onCover
       )}
       {coverFor && <CoverPicker trip={coverFor} onClose={() => setCoverFor(null)} onSave={p => { onCover(coverFor.id, p); setCoverFor(null) }} />}
     </div>
+  )
+}
+
+function TripEmptyIllustration() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 520 250" fill="none" className="h-auto w-full max-w-[460px]">
+      <defs>
+        <linearGradient id="empty-sky" x1="260" y1="14" x2="260" y2="226" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#DCEBE3" />
+          <stop offset="1" stopColor="#F5EAD5" />
+        </linearGradient>
+        <linearGradient id="empty-hill-back" x1="151" y1="127" x2="203" y2="240" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#91B69E" />
+          <stop offset="1" stopColor="#668C77" />
+        </linearGradient>
+        <linearGradient id="empty-hill-front" x1="294" y1="162" x2="316" y2="242" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#498271" />
+          <stop offset="1" stopColor="#17675B" />
+        </linearGradient>
+        <filter id="empty-shadow" x="166" y="34" width="218" height="227" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse">
+          <feGaussianBlur stdDeviation="7" />
+        </filter>
+      </defs>
+      <rect x="18" y="12" width="484" height="224" rx="28" fill="url(#empty-sky)" />
+      <circle cx="403" cy="63" r="26" fill="#E7AD58" />
+      <circle cx="403" cy="63" r="39" fill="#E7AD58" fillOpacity=".16" />
+      <path d="M49 145c30-7 43-44 77-46 37-2 46 34 83 32 30-1 44-28 77-27 37 1 48 33 79 34 26 1 42-17 76-19v117H49V145Z" fill="url(#empty-hill-back)" fillOpacity=".75" />
+      <path d="M18 187c36-17 57-8 91-26 36-19 49-45 85-43 41 2 53 51 99 53 41 2 61-42 102-39 36 3 52 31 107 28v76H18v-49Z" fill="url(#empty-hill-front)" />
+      <path d="m96 180 13 25h-26l13-25Zm18 17 10 19h-20l10-19Zm274-16 12 23h-24l12-23Zm17 19 9 17h-18l9-17Z" fill="#F4EAD6" fillOpacity=".9" />
+      <g filter="url(#empty-shadow)" opacity=".2">
+        <rect x="213" y="54" width="130" height="162" rx="16" fill="#132D27" />
+      </g>
+      <g transform="rotate(-5 273 131)">
+        <rect x="205" y="44" width="130" height="162" rx="16" fill="#FFFCF5" />
+        <rect x="217" y="57" width="106" height="67" rx="9" fill="#DCEBE3" />
+        <path d="M217 102c18-10 25-24 40-22 13 2 18 19 31 18 13-1 20-12 35-9v35H217v-22Z" fill="#17675B" fillOpacity=".85" />
+        <circle cx="298" cy="76" r="8" fill="#E7AD58" />
+        <rect x="219" y="137" width="67" height="8" rx="4" fill="#263C34" fillOpacity=".78" />
+        <rect x="219" y="152" width="97" height="5" rx="2.5" fill="#263C34" fillOpacity=".2" />
+        <rect x="219" y="163" width="81" height="5" rx="2.5" fill="#263C34" fillOpacity=".2" />
+        <path d="M304 181h12" stroke="#E77B4B" strokeWidth="3" strokeLinecap="round" />
+      </g>
+      <path d="M121 76c8-8 17-8 25 0m-16 0c8-8 17-8 25 0" stroke="#fff" strokeOpacity=".9" strokeWidth="3" strokeLinecap="round" />
+    </svg>
   )
 }

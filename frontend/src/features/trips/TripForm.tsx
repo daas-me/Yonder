@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { assetUrl, resizeImage } from '../../services'
-import { type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip } from '../../shared'
+import { defaultTripCover, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip } from '../../shared'
 import { ExtrasEditor } from '../budget'
 
 /* ---------------- Trip form ---------------- */
@@ -35,10 +35,22 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: P
         <Field label="Tagline (optional)"><input className="input" value={f.tagline} maxLength={80} placeholder="Salt, sun and slow mornings" onChange={e => setF({ ...f, tagline: e.target.value })} /></Field>
         <Field label="Description (optional)" error={err.description}><textarea className="input" rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></Field>
 
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-line2 bg-sand/50 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-ink/65">Group trip</p>
+            <p className="mt-0.5 text-xs text-ink/50">Plan and coordinate this trip with others.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full bg-ink/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink/45">Coming soon</span>
+            <input type="checkbox" role="switch" aria-label="Group trip" aria-describedby="group-trip-coming-soon" disabled className="coming-soon-switch" />
+          </div>
+          <span id="group-trip-coming-soon" className="sr-only">Group trips are coming soon.</span>
+        </div>
+
         <Section title="Look & feel" hint="Theme colour and cover used on your ticket and trip page.">
           <div className="flex items-center gap-4">
             <div className="topo relative h-20 w-32 shrink-0 overflow-hidden rounded-lg" style={{ background: f.color }}>
-              {f.cover && <img src={assetUrl(f.cover)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />}
+              <img src={assetUrl(f.cover ?? defaultTripCover(f.color, f.destination))} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
               <span className="absolute bottom-1.5 left-2 right-2 truncate font-display text-sm font-semibold text-white drop-shadow">{f.name || 'Your trip'}</span>
             </div>
             <div className="space-y-2">

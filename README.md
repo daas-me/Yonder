@@ -40,10 +40,10 @@ The implemented React client uses React (not Vue) and talks to the API at `/api`
 
    Demo login: `demo@yonder.local` / `YonderDemo2026!`. This account is intended only for local development; never enable the `dev` profile in production.
 
-3. Install and start the frontend:
+3. Open a **new PowerShell terminal at the repository root** and install/start the frontend (the backend terminal is still in `backend/app`):
 
    ```powershell
-   Set-Location frontend
+   Set-Location .\frontend
    corepack pnpm install --frozen-lockfile
    corepack pnpm run dev
    ```
@@ -70,6 +70,8 @@ Use a separate Places key that stays on the server. Configure it as `GOOGLE_PLAC
 - `PUT /api/me`, `PUT /api/me/password`, `DELETE /api/me`
 
 Session cookies are HttpOnly, writes require a CSRF token, passwords are BCrypt-hashed, and trip access is scoped to the authenticated owner. Profile, cover, journal, and activity photos are compressed to JPEG in the browser and uploaded to the authenticated API (maximum 8 MB). The backend stores files under `PHOTO_STORAGE_DIR` (default `backend/app/data/photos` when started from `backend/app`); keep this directory persistent and back it up with MySQL. Removing a photo, trip, or account removes its stored files.
+
+New accounts start with an editable, deletable Baguio sample trip. Its original illustration assets are served by the frontend from `frontend/public/sample-images`.
 
 Share creates a random, read-only token link that expires after 30 days. Only a hash of the token is persisted. The trip owner can revoke every active link for that trip from the Share dialog. Shared links show the current trip contents and photos while the link remains active.
 

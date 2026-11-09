@@ -181,16 +181,25 @@ export default function App() {
   const updateTrip = persistTrip
 
   const today = new Date().toISOString().slice(0, 10)
-  const navItems: { key: string; label: string; icon: string; active: boolean; on: () => void }[] = [
-    { key: 'trips', label: 'My trips', icon: 'M3 12h13l-3-3m3 3l-3 3M21 5v14', active: view.page !== 'account', on: () => setView({ page: 'trips' }) },
-    { key: 'new', label: 'New trip', icon: 'M12 5v14M5 12h14', active: false, on: () => setNewTrip(true) },
-    { key: 'import', label: 'Import', icon: 'M12 4v11m0 0l-4-4m4 4l4-4M5 20h14', active: false, on: () => setImporting(true) },
-    { key: 'account', label: 'Account', icon: 'M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0', active: view.page === 'account', on: () => setView({ page: 'account' }) },
+  const hasUpcomingTrips = mine.some(trip => trip.end >= today)
+  const navItems: { key: 'trips' | 'new' | 'import' | 'account'; label: string; active: boolean; on: () => void }[] = [
+    { key: 'trips', label: 'My trips', active: view.page !== 'account', on: () => setView({ page: 'trips' }) },
+    { key: 'new', label: 'New trip', active: false, on: () => setNewTrip(true) },
+    { key: 'import', label: 'Import', active: false, on: () => setImporting(true) },
+    { key: 'account', label: 'Account', active: view.page === 'account', on: () => setView({ page: 'account' }) },
   ]
   const Icon = ({ d, className = '' }: { d: string; className?: string }) => <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={d} /></svg>
+  const NavIcon = ({ name, className = '' }: { name: typeof navItems[number]['key']; className?: string }) => (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {name === 'trips' && <><rect x="3.5" y="7" width="17" height="13" rx="2.5" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3.5 12h17M12 11v2" /></>}
+      {name === 'new' && <><path d="m21 3-6.5 18-3.5-8-8-3.5L21 3Z" /><path d="M11 13 21 3" /></>}
+      {name === 'import' && <><path d="M5 4h14v5a2 2 0 0 0 0 4v5H5v-5a2 2 0 0 0 0-4V4Z" /><path d="M12 7v7m-2.5-2.5L12 14l2.5-2.5" /></>}
+      {name === 'account' && <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /><path d="M18.5 4.5v4m-2-2h4" /></>}
+    </svg>
+  )
   const openAccount = () => { setView({ page: 'account' }); setMenu(false) }
   const navButtonClass = (active: boolean, compact: boolean) =>
-    `group relative flex w-full items-center gap-3 rounded-xl py-2.5 text-sm transition-colors ${compact ? 'justify-center px-0' : 'px-3'} ${active ? 'bg-pine/10 font-semibold text-pine shadow-sm ring-1 ring-pine/10' : 'text-ink/65 hover:bg-ink/5 hover:text-ink'}`
+    `group relative flex w-full items-center gap-3 rounded-2xl py-2.5 text-sm transition-all duration-200 ${compact ? 'justify-center px-0' : 'px-3'} ${active ? 'bg-pine/[.08] font-semibold text-ink shadow-sm ring-1 ring-pine/10' : 'text-ink/65 hover:bg-ink/[.035] hover:text-ink'}`
 
   return (
     <div className={`min-h-screen transition-[padding] duration-200 ${side === 'full' ? 'lg:pl-60' : side === 'rail' ? 'lg:pl-16' : 'lg:pl-0'}`}>
@@ -211,7 +220,12 @@ export default function App() {
             {navItems.map(n => (
               <button key={n.key} onClick={n.on} title={side === 'rail' ? n.label : undefined} aria-label={side === 'rail' ? n.label : undefined} aria-current={n.active ? 'page' : undefined} className={navButtonClass(n.active, side === 'rail')}>
                 {n.active && side === 'full' && <span className="absolute inset-y-2 left-0 w-1 rounded-full bg-pine" />}
-                <Icon d={n.icon} className="shrink-0" />{side === 'full' && <span className="flex-1 text-left">{n.label}</span>}
+                <span data-nav-key={n.key} className={`nav-tile relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${n.active ? 'is-active' : ''}`}>
+                  <NavIcon name={n.key} className="h-[18px] w-[18px]" />
+                  {n.key === 'trips' && hasUpcomingTrips && (
+                    <span className="nav-upcoming-dot" aria-label="Upcoming trips" />
+                  )}
+                </span>{side === 'full' && <span className="flex-1 text-left">{n.label}</span>}
                 {side === 'full' && n.key === 'trips' && <span className={`rounded-full px-2 py-0.5 text-[10px] tabular-nums ${n.active ? 'bg-pine/10' : 'bg-ink/5 text-ink/45'}`}>{mine.length}</span>}
               </button>
             ))}
@@ -231,8 +245,8 @@ export default function App() {
           <div className={`border-t border-line p-3 ${side === 'rail' ? 'flex flex-col items-center gap-2' : 'space-y-2'}`}>
             {side === 'full' ? (
               <>
-                <button onClick={openAccount} aria-current={view.page === 'account' ? 'page' : undefined} className={`flex w-full items-center gap-3 rounded-xl p-2 text-left transition ${view.page === 'account' ? 'bg-pine/10' : 'hover:bg-ink/5'}`}>
-                  <UserAvatar user={user} className="h-10 w-10" />
+                <button onClick={openAccount} aria-current={view.page === 'account' ? 'page' : undefined} className={`profile-trigger group flex w-full items-center gap-3 rounded-xl p-2 text-left transition ${view.page === 'account' ? 'bg-pine/10' : 'hover:bg-ink/5'}`}>
+                  <UserAvatar user={user} className="profile-avatar h-10 w-10" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{user.name}</span>
                     <span className="block truncate text-xs text-ink/50">{user.homeCity || user.email}</span>
@@ -250,7 +264,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <button onClick={openAccount} title={`${user.name} — Account`} aria-label={`${user.name} — Account`} className="rounded-full transition hover:ring-2 hover:ring-pine/40"><UserAvatar user={user} className="h-9 w-9" /></button>
+                <button onClick={openAccount} title={`${user.name} — Account`} aria-label={`${user.name} — Account`} className="profile-trigger group rounded-full transition"><UserAvatar user={user} className="profile-avatar h-9 w-9" /></button>
                 <button onClick={() => setConfirmSignOut(true)} title="Sign out" aria-label="Sign out of Yonder" className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/45 transition hover:bg-clay/10 hover:text-clay"><Icon d="M10 17l5-5-5-5m5 5H3m9-9h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></button>
                 {themeBtn}
                 <button title="Expand sidebar" aria-label="Expand sidebar" onClick={() => setSide('full')} className="rounded-md p-1.5 text-ink/50 hover:bg-ink/5 hover:text-ink"><Icon d="M9 6l6 6-6 6" /></button>
@@ -266,10 +280,10 @@ export default function App() {
       )}
 
       {/* Top bar (mobile) */}
-      <header className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-line bg-ink px-4 py-3 text-sand lg:hidden">
+      <header className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-line2 bg-sand px-4 py-3 text-ink shadow-sm lg:hidden">
         <button onClick={() => setView({ page: 'trips' })}><Logo /></button>
         <div className="flex items-center gap-1">{themeBtn}
-          <button onClick={() => setMenu(!menu)} aria-label="Open account menu" aria-expanded={menu} className="rounded-full transition hover:ring-2 hover:ring-pine/50"><UserAvatar user={user} className="h-9 w-9" /></button>
+          <button onClick={() => setMenu(!menu)} aria-label="Open account menu" aria-expanded={menu} className="profile-trigger group rounded-full transition"><UserAvatar user={user} className="profile-avatar h-9 w-9" /></button>
         </div>
         {menu && (
           <div className="absolute right-3 top-14 w-64 rounded-2xl border border-line bg-card p-2 text-ink shadow-xl backdrop-blur-xl">
@@ -280,9 +294,17 @@ export default function App() {
         )}
       </header>
       {/* Bottom nav (mobile) */}
-      <nav aria-label="Main navigation" className="no-print fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] text-ink shadow-[0_-8px_24px_-20px_rgba(22,32,29,.5)] backdrop-blur-xl lg:hidden">
+      <nav aria-label="Main navigation" className="no-print fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line2 bg-sand/90 pb-[env(safe-area-inset-bottom)] text-ink shadow-[0_-8px_24px_-20px_rgba(22,32,29,.5)] backdrop-blur-md lg:hidden">
         {navItems.map(n => (
-          <button key={n.key} onClick={n.on} aria-current={n.active ? 'page' : undefined} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] transition ${n.active ? 'font-semibold text-pine' : 'text-ink/55 hover:text-ink'}`}><span className={`flex h-8 w-12 items-center justify-center rounded-xl transition ${n.active ? 'bg-pine/10' : ''}`}><Icon d={n.icon} /></span>{n.label}</button>
+          <button key={n.key} onClick={n.on} aria-current={n.active ? 'page' : undefined} className={`group flex flex-col items-center gap-1 py-2.5 text-[11px] transition ${n.active ? 'font-semibold text-pine' : 'text-ink/75 hover:text-ink'}`}>
+            <span data-nav-key={n.key} className={`nav-tile relative flex h-8 w-10 items-center justify-center rounded-xl ${n.active ? 'is-active' : ''}`}>
+              <NavIcon name={n.key} className="h-[18px] w-[18px]" />
+              {n.key === 'trips' && hasUpcomingTrips && (
+                <span className="nav-upcoming-dot" aria-label="Upcoming trips" />
+              )}
+            </span>
+            {n.label}
+          </button>
         ))}
       </nav>
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-8 lg:pb-12 lg:pt-10">
