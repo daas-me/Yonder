@@ -40,7 +40,7 @@ const KEYWORDS: [Cat, RegExp][] = [
 const guessCat = (s: string): Cat => KEYWORDS.find(([, r]) => r.test(s))?.[0] ?? 'other'
 
 export type Draft = { id: string; title: string; location: string; time: string; cost: number; notes: string; category: Cat; date?: string; day?: number; keep: boolean }
-export type Parsed = { name: string; destination: string; description: string; firstDate?: string; acts: Draft[] }
+export type Parsed = { name: string; destination: string; description: string; firstDate?: string; travelerCount?: number; acts: Draft[] }
 
 export function parseItinerary(text: string): Parsed {
   const out: Parsed = { name: '', destination: '', description: '', acts: [] }
@@ -48,6 +48,11 @@ export function parseItinerary(text: string): Parsed {
   let last: Draft | null = null
   const lines = text.split(/\r?\n/).map(l => l.replace(/^[\s•*·▪\-–>]+/, '').trim()).filter(Boolean)
   for (const line of lines) {
+    const pax = line.match(/^(?:pax|travelers?|group\s*size)\s*[:\-]\s*(\d{1,2})$/i)
+    if (pax) {
+      out.travelerCount = Number(pax[1])
+      continue
+    }
     const kv = line.match(/^(trip(?:\s*name)?|title|name|destination|where|location|description|summary|about)\s*[:\-–]\s*(.+)$/i)
     if (kv) {
       const k = kv[1].toLowerCase()

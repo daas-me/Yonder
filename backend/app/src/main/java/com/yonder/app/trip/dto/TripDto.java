@@ -3,6 +3,7 @@ package com.yonder.app.trip.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -27,5 +28,15 @@ public record TripDto(
         @Size(max = 32) String color,
         @Size(max = 2048) String cover,
         @Size(max = 160) String tagline,
-        @Valid List<@Valid ActivityDto> activities) {
+        @Valid List<@Valid ActivityDto> activities,
+        Boolean groupTrip,
+        @Valid List<@Valid TravelerDto> travelers,
+        Map<String, String> categoryShareModes) {
+    public TripDto(
+            String id, String ownerId, String name, String destination, LocalDate start, LocalDate end,
+            String description, BigDecimal budget, List<CheckDto> checklist, GeoDto geo, List<MemoryDto> memories,
+            List<ExtraDto> extras, String color, String cover, String tagline, List<ActivityDto> activities) {
+        this(id, ownerId, name, destination, start, end, description, budget, checklist, geo, memories, extras,
+                color, cover, tagline, activities, false, List.of(), Map.of());
+    }
 }

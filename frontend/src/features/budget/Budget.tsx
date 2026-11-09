@@ -1,5 +1,6 @@
-import { useEffect, useId } from 'react'
-import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, planned as plannedCost, PlusIcon, sortActs, type Trip, uid } from '../../shared'
+import { useEffect, useId, useState } from 'react'
+import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, planned as plannedCost, PlusIcon, sortActs, THEMES, type Trip, uid, useModalScrollLock } from '../../shared'
+import { incompleteOwnOrderCount, travelerCostBreakdown } from '../../shared'
 
 const r2 = (v: string) => { const n = Math.round(Math.max(0, Number(v) || 0) * 100) / 100; return Math.min(n, 9999999999.99) }
 const phpCompact = (v: number) => `₱${Math.round(v).toLocaleString('en-PH')}`
@@ -133,6 +134,88 @@ export function BudgetOverview({ trip }: { trip: Trip }) {
     <div className="rounded-xl bg-sand/35 p-4 ring-1 ring-line">
       <BudgetPlanSummary trip={trip} boxed={false} />
       <BudgetCategorySummary trip={trip} boxed={false} />
+      {trip.groupTrip && <PerPersonSummary trip={trip} />}
+    </div>
+  )
+}
+
+function PerPersonSummary({ trip, boxed = false, detailed = false }: { trip: Trip; boxed?: boolean; detailed?: boolean }) {
+  const [showAll, setShowAll] = useState(false)
+  const rows = travelerCostBreakdown(trip)
+  const pending = incompleteOwnOrderCount(trip)
+  if (!rows.length) return null
+  const hasActual = trip.activities.some(activity => activity.actual != null) || (trip.extras ?? []).some(extra => extra.actual != null)
+  const amounts = rows.map(row => hasActual ? row.actual : row.planned)
+  const allEqual = amounts.every(amount => Math.abs(amount - amounts[0]) < 0.01)
+  const maxAmount = Math.max(...amounts, 0)
+  const visibleRows = detailed || showAll ? rows : rows.slice(0, 5)
+  return (
+    <section className={`${boxed ? 'rounded-xl p-4 ring-1 ring-line' : 'mt-4 border-t border-line pt-4'}`} aria-label="Group trip cost per person">
+      <div className="flex items-baseline justify-between gap-2">
+        <h4 className="text-[10px] font-semibold uppercase tracking-wider text-ink/50">{hasActual ? 'Spent per person' : 'Planned per person'}</h4>
+        <span className="text-[10px] text-ink/45">{rows.length} pax</span>
+      </div>
+      {allEqual ? (
+        <div className="mt-2 flex items-center gap-2.5 rounded-xl bg-moss/50 px-3 py-2.5">
+          <div className="flex shrink-0 items-center pl-1.5" aria-label={`${rows.length} travelers`}>
+            {rows.slice(0, 5).map((row, index) => {
+              const color = THEMES[index % THEMES.length]
+              return <span key={row.id} aria-hidden="true" className="-ml-1.5 grid h-7 w-7 place-items-center rounded-full border-2 border-card text-[10px] font-semibold text-white" style={{ backgroundColor: color }}>{row.label.slice(0, 1).toUpperCase()}</span>
+            })}
+            {rows.length > 5 && <span className="-ml-1.5 grid h-7 w-7 place-items-center rounded-full border-2 border-card bg-ink/60 text-[9px] font-semibold text-white">+{rows.length - 5}</span>}
+          </div>
+          <span className="min-w-0 flex-1 truncate text-sm text-ink/65">Everyone pays</span>
+          <strong className="shrink-0 text-sm tabular-nums">{php(amounts[0])}</strong>
+        </div>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {visibleRows.map((row, index) => {
+            const amount = hasActual ? row.actual : row.planned
+            const color = THEMES[index % THEMES.length]
+            return <div key={row.id} className="flex items-center gap-2.5">
+              <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white" style={{ backgroundColor: color }}>{row.label.slice(0, 1).toUpperCase()}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-ink/75">{row.label}</span>
+                  <strong className="shrink-0 tabular-nums">{php(amount)}</strong>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink/10">
+                  <div className="h-full rounded-full transition-[width]" style={{ width: `${maxAmount ? (amount / maxAmount) * 100 : 0}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            </div>
+          })}
+          {!detailed && rows.length > 5 && <button type="button" className="w-full py-1 text-xs font-medium text-pine hover:underline" onClick={() => setShowAll(value => !value)}>{showAll ? 'Show less' : `Show all ${rows.length}`}</button>}
+        </div>
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed text-ink/45">Food and shopping are paid per order; everything else is split equally.{pending > 0 && <> <span className="text-clay">{pending} activity {pending === 1 ? 'still needs' : 'still need'} per-person amounts</span>, so {pending === 1 ? 'it is' : 'they are'} split equally for now.</>}</p>
+    </section>
+  )
+}
+
+function PerPersonTable({ trip }: { trip: Trip }) {
+  const rows = travelerCostBreakdown(trip)
+  if (!rows.length) return null
+  return (
+    <div className="mt-5">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-ink/50">Per person</h4>
+      <div className="overflow-x-auto rounded-xl ring-1 ring-line">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead className="bg-sand/70 text-left text-[10px] font-semibold uppercase tracking-wider text-ink/55">
+            <tr><th className="px-2.5 py-2">Traveler</th><th className="px-2.5 py-2 text-right">Shared</th><th className="px-2.5 py-2 text-right">Own orders</th><th className="px-2.5 py-2 text-right">Total</th><th className="px-2.5 py-2 text-right">Spent</th></tr>
+          </thead>
+          <tbody>{rows.map((row, index) => (
+            <tr key={row.id} className="border-t border-line">
+              <td className="px-2.5 py-2"><span className="inline-flex items-center gap-2 whitespace-nowrap font-medium"><span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: THEMES[index % THEMES.length] }}>{row.label.slice(0, 1).toUpperCase()}</span>{row.label}</span></td>
+              <td className="px-2.5 py-2 text-right tabular-nums">{num(row.shared)}</td>
+              <td className="px-2.5 py-2 text-right tabular-nums">{num(row.ownOrders)}</td>
+              <td className="px-2.5 py-2 text-right font-semibold tabular-nums">{num(row.planned)}</td>
+              <td className="px-2.5 py-2 text-right tabular-nums">{num(row.actual)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-[11px] text-ink/45">Shared costs are split equally among the people on each item; own orders are what each person entered. Misc expenses are shared by everyone.</p>
     </div>
   )
 }
@@ -250,10 +333,17 @@ export function budgetCsvRows(trip: Trip) {
   ]))
   rows.push(['TOTAL', '', '', '', '', '', stats.planned.toFixed(2), stats.actual.toFixed(2), (stats.actual - stats.planned).toFixed(2)])
   if (stats.limit) rows.push(['BUDGET LIMIT', '', '', '', '', '', stats.limit.toFixed(2), '', ''])
+  if (trip.groupTrip) {
+    rows.push(['PER PERSON', '', '', '', 'Traveler', 'Shared (PHP)', 'Own orders (PHP)', 'Planned total (PHP)', 'Actual (PHP)'])
+    travelerCostBreakdown(trip).forEach(row => rows.push([
+      'Traveler', '', '', '', row.label, row.shared.toFixed(2), row.ownOrders.toFixed(2), row.planned.toFixed(2), row.actual.toFixed(2),
+    ]))
+  }
   return rows
 }
 
 export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip; readOnly?: boolean; onUpdate: (t: Trip) => void; onClose: () => void }) {
+  useModalScrollLock()
   const titleId = useId()
   const s = budgetStats(trip)
   const days = dayList(trip.start, trip.end)
@@ -287,14 +377,15 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
+        <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line2 bg-sand/70 px-6 py-4 shadow-[0_2px_8px_-6px_rgba(22,32,29,0.28)]">
           <div><h3 id={titleId} className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in PHP</p></div>
           <div className="flex gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost px-3" aria-label="Close" onClick={onClose}>✕</button></div>
         </div>
-        <div className="min-h-0 flex-1 space-y-8 overflow-auto p-6">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="modal-scroll min-h-0 flex-1 space-y-8 overflow-auto p-6">
+        <div className={`grid gap-4 ${trip.groupTrip ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
           <BudgetPlanSummary trip={trip} />
           <BudgetCategorySummary trip={trip} />
+          {trip.groupTrip && <PerPersonSummary trip={trip} boxed detailed />}
         </div>
 
           <section>
@@ -342,7 +433,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
             <div className="rounded-xl p-3 ring-1 ring-line"><ExtrasEditor items={extras} readOnly={readOnly} onChange={x => onUpdate({ ...trip, extras: x })} /></div>
           </section>
 
-          <section>
+          <section className="space-y-5">
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-ink/50">By category</h4>
               <div className="overflow-hidden rounded-xl ring-1 ring-line">
@@ -366,7 +457,15 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
                 </table>
               </div>
             </div>
-            <p className="mt-3 text-xs text-ink/50">Budgeted figures come from your own estimates. Yonder doesn't book anything or check live prices.</p>
+            {trip.groupTrip && <PerPersonTable trip={trip} />}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-ink/15 to-ink/15" />
+                <span className="h-1 w-1 shrink-0 rounded-full bg-pine/55" />
+                <span className="h-px flex-1 bg-gradient-to-l from-transparent via-ink/15 to-ink/15" />
+              </div>
+              <p className="text-center text-[11px] leading-relaxed text-ink/50">Estimates are for planning only — Yonder doesn’t book services or verify live prices.</p>
+            </div>
           </section>
         </div>
       </div>

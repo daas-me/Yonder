@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -27,5 +28,15 @@ public record ActivityDto(
         @Size(max = 2048) String image,
         Double lat,
         Double lon,
-        @Valid List<@Valid MemoryDto> memories) {
+        @Valid List<@Valid MemoryDto> memories,
+        @Pattern(regexp = "equal|own") String shareMode,
+        List<@Size(max = 40) String> sharedTravelerIds,
+        Map<@Size(max = 40) String, @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal> personalAmounts) {
+    public ActivityDto(
+            String id, String category, String title, LocalDate date, LocalTime time, String location,
+            BigDecimal cost, BigDecimal actual, String status, String notes, String image, Double lat, Double lon,
+            List<MemoryDto> memories) {
+        this(id, category, title, date, time, location, cost, actual, status, notes, image, lat, lon, memories,
+                null, List.of(), Map.of());
+    }
 }

@@ -146,6 +146,74 @@ class TripApiIntegrationTests {
     }
 
     @Test
+    void groupTripSettingsAndPayerAllocationsPersistAndAppearInReadOnlyShares() throws Exception {
+        String groupTrip = """
+                {
+                  "id": "group-trip-test",
+                  "name": "Baguio with friends",
+                  "destination": "Baguio",
+                  "start": "2026-11-20",
+                  "end": "2026-11-21",
+                  "description": "",
+                  "groupTrip": true,
+                  "travelers": [
+                    {"id": "owner", "name": "You"},
+                    {"id": "friend", "name": "Lee"}
+                  ],
+                  "categoryShareModes": {"food": "own", "transport": "equal"},
+                  "activities": [{
+                    "id": "group-lunch",
+                    "category": "food",
+                    "title": "Lunch",
+                    "date": "2026-11-20",
+                    "time": "12:00",
+                    "location": "Baguio",
+                    "cost": 100.00,
+                    "actual": 80.00,
+                    "notes": "",
+                    "shareMode": "own",
+                    "sharedTravelerIds": [],
+                    "personalAmounts": {"owner": 25.00, "friend": 75.00}
+                  }],
+                  "extras": [],
+                  "checklist": [],
+                  "memories": []
+                }
+                """;
+
+        mvc.perform(post("/api/trips").with(user(EMAIL)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(groupTrip))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.groupTrip").value(true))
+                .andExpect(jsonPath("$.travelers.length()").value(2))
+                .andExpect(jsonPath("$.categoryShareModes.food").value("own"))
+                .andExpect(jsonPath("$.activities[0].shareMode").value("own"))
+                .andExpect(jsonPath("$.activities[0].personalAmounts.owner").value(25.0));
+
+        mvc.perform(get("/api/trips/group-trip-test").with(user(EMAIL)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.travelers[1].name").value("Lee"))
+                .andExpect(jsonPath("$.activities[0].personalAmounts.friend").value(75.0));
+
+        MvcResult share = mvc.perform(post("/api/trips/group-trip-test/share").with(user(EMAIL)).with(csrf()))
+                .andExpect(status().isCreated()).andReturn();
+        String token = com.jayway.jsonpath.JsonPath.read(share.getResponse().getContentAsString(), "$.token");
+        mvc.perform(get("/api/shared/" + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groupTrip").value(true))
+                .andExpect(jsonPath("$.travelers.length()").value(2))
+                .andExpect(jsonPath("$.activities[0].personalAmounts.friend").value(75.0));
+
+        mvc.perform(post("/api/trips").with(user(EMAIL)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(groupTrip.replace(
+                                "\"group-trip-test\"", "\"invalid-group-trip-test\"")
+                                .replace("\"group-lunch\"", "\"invalid-group-lunch\"")
+                                .replace("\"Baguio with friends\"", "\"Invalid group trip\"")
+                                .replace("\"friend\": 75.00", "\"friend\": 70.00")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void loginCreatesAnAuthenticatedSessionWithoutExposingPasswordData() throws Exception {
         MvcResult result = mvc.perform(post("/api/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

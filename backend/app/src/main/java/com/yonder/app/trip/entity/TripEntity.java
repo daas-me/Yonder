@@ -43,6 +43,12 @@ public class TripEntity {
     private String cover;
     @Column(length = 160)
     private String tagline;
+    @Column(name = "group_trip", nullable = false)
+    private boolean groupTrip;
+    @Column(name = "travelers_json", columnDefinition = "TEXT")
+    private String travelersJson;
+    @Column(name = "category_share_modes_json", columnDefinition = "TEXT")
+    private String categoryShareModesJson;
     private Double latitude;
     private Double longitude;
 
@@ -78,6 +84,12 @@ public class TripEntity {
     public void setCover(String cover) { this.cover = cover; }
     public String getTagline() { return tagline; }
     public void setTagline(String tagline) { this.tagline = tagline; }
+    public boolean isGroupTrip() { return groupTrip; }
+    public void setGroupTrip(boolean groupTrip) { this.groupTrip = groupTrip; }
+    public String getTravelersJson() { return travelersJson; }
+    public void setTravelersJson(String travelersJson) { this.travelersJson = travelersJson; }
+    public String getCategoryShareModesJson() { return categoryShareModesJson; }
+    public void setCategoryShareModesJson(String categoryShareModesJson) { this.categoryShareModesJson = categoryShareModesJson; }
     public Double getLatitude() { return latitude; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public Double getLongitude() { return longitude; }

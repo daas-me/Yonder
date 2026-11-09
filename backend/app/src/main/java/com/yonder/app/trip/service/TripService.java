@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -26,6 +29,7 @@ import com.yonder.app.trip.dto.ExtraDto;
 import com.yonder.app.trip.dto.GeoDto;
 import com.yonder.app.trip.dto.MemoryDto;
 import com.yonder.app.trip.dto.TripDto;
+import com.yonder.app.trip.dto.TravelerDto;
 import com.yonder.app.trip.entity.ActivityEntity;
 import com.yonder.app.trip.entity.ChecklistEntity;
 import com.yonder.app.trip.entity.ExtraEntity;
@@ -40,12 +44,14 @@ public class TripService {
     private final MemoryRepository memories;
     private final UserRepository users;
     private final PhotoStorageService photos;
+    private final ObjectMapper objectMapper;
 
-    public TripService(TripRepository trips, MemoryRepository memories, UserRepository users, PhotoStorageService photos) {
+    public TripService(TripRepository trips, MemoryRepository memories, UserRepository users, PhotoStorageService photos, ObjectMapper objectMapper) {
         this.trips = trips;
         this.memories = memories;
         this.users = users;
         this.photos = photos;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -74,7 +80,7 @@ public class TripService {
                                         : activity.image(),
                         activity.lat(), activity.lon(), activity.memories().stream()
                                 .map(memory -> withPhotoUrl(memory, "/api/shared/" + token + "/photos/memories/" + memory.id()))
-                                .toList()))
+                                .toList(), activity.shareMode(), activity.sharedTravelerIds(), activity.personalAmounts()))
                 .toList();
         String sharedCover = trip.cover();
         if (sharedCover != null && sharedCover.equals("/api/trips/" + trip.id() + "/photos/cover")) {
@@ -90,7 +96,8 @@ public class TripService {
         return new TripDto(
                 trip.id(), "", trip.name(), trip.destination(), trip.start(), trip.end(), trip.description(),
                 trip.budget(), trip.checklist(), trip.geo(), sharedMemories, trip.extras(), trip.color(), sharedCover,
-                trip.tagline(), sharedActivities);
+                trip.tagline(), sharedActivities, trip.groupTrip(), safe(trip.travelers()), trip.categoryShareModes() == null
+                        ? Map.of() : trip.categoryShareModes());
     }
 
     @Transactional
@@ -286,6 +293,55 @@ public class TripService {
                 .anyMatch(activity -> activity.date().isBefore(trip.start()) || activity.date().isAfter(trip.end()))) {
             throw new IllegalArgumentException("Every activity date must fall within the trip date range");
         }
+        validateGroupTrip(trip);
+    }
+
+    private void validateGroupTrip(TripDto trip) {
+        List<TravelerDto> travelers = safe(trip.travelers());
+        if (Boolean.TRUE.equals(trip.groupTrip())) {
+            if (travelers.size() < 2 || travelers.size() > 99) {
+                throw new IllegalArgumentException("A group trip must have between 2 and 99 travelers");
+            }
+            Set<String> travelerIds = new HashSet<>();
+            for (TravelerDto traveler : travelers) {
+                if (traveler == null) {
+                    throw new IllegalArgumentException("Group trip travelers must be valid");
+                }
+                requireUniqueId(travelerIds, traveler.id());
+            }
+            Map<String, String> shareModes = trip.categoryShareModes() == null ? Map.of() : trip.categoryShareModes();
+            Set<String> categories = Set.of("transport", "food", "lodging", "sights", "shopping", "other");
+            if (shareModes.entrySet().stream().anyMatch(entry ->
+                    !categories.contains(entry.getKey()) || entry.getValue() == null
+                            || !Set.of("equal", "own").contains(entry.getValue()))) {
+                throw new IllegalArgumentException("Invalid category cost sharing preference");
+            }
+            for (ActivityDto activity : safe(trip.activities())) {
+                if (activity.shareMode() != null && !Set.of("equal", "own").contains(activity.shareMode())) {
+                    throw new IllegalArgumentException("Invalid activity cost sharing mode");
+                }
+                List<String> sharedIds = safe(activity.sharedTravelerIds());
+                if (sharedIds.stream().anyMatch(id -> !travelerIds.contains(id))) {
+                    throw new IllegalArgumentException("Activity shares must reference travelers on this trip");
+                }
+                if (new HashSet<>(sharedIds).size() != sharedIds.size()) {
+                    throw new IllegalArgumentException("Activity shares cannot list a traveler more than once");
+                }
+                if (activity.personalAmounts() != null && activity.personalAmounts().keySet().stream()
+                        .anyMatch(id -> !travelerIds.contains(id))) {
+                    throw new IllegalArgumentException("Personal amounts must reference travelers on this trip");
+                }
+                if ("own".equals(activity.shareMode()) && activity.personalAmounts() != null
+                        && activity.personalAmounts().keySet().containsAll(travelerIds)
+                        && activity.personalAmounts().values().stream().allMatch(java.util.Objects::nonNull)) {
+                    BigDecimal amountsTotal = activity.personalAmounts().values().stream()
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    if (amountsTotal.compareTo(activity.cost()) != 0) {
+                        throw new IllegalArgumentException("Personal amounts must add up to the estimated activity cost");
+                    }
+                }
+            }
+        }
     }
 
     private void applyTripFields(TripEntity trip, TripDto request) {
@@ -307,6 +363,9 @@ public class TripService {
         }
         trip.setCover(cover);
         trip.setTagline(request.tagline());
+        trip.setGroupTrip(Boolean.TRUE.equals(request.groupTrip()));
+        trip.setTravelersJson(writeJson(safe(request.travelers())));
+        trip.setCategoryShareModesJson(writeJson(request.categoryShareModes() == null ? Map.of() : request.categoryShareModes()));
         trip.setLatitude(request.geo() == null ? null : request.geo().lat());
         trip.setLongitude(request.geo() == null ? null : request.geo().lon());
     }
@@ -350,6 +409,9 @@ public class TripService {
             activity.setImage(image);
             activity.setLatitude(dto.lat());
             activity.setLongitude(dto.lon());
+            activity.setShareMode(dto.shareMode());
+            activity.setSharedTravelerIdsJson(writeJson(safe(dto.sharedTravelerIds())));
+            activity.setPersonalAmountsJson(writeJson(dto.personalAmounts() == null ? Map.of() : dto.personalAmounts()));
         }
         trip.getActivities().removeIf(activity -> {
             if (retained.contains(activity.getId())) {
@@ -466,7 +528,9 @@ public class TripService {
                                 ? "/api/trips/" + trip.getId() + "/photos/activities/" + activity.getId()
                                 : activity.getImage(),
                         activity.getLatitude(), activity.getLongitude(),
-                        activityMemories.getOrDefault(activity.getId(), List.of())))
+                        activityMemories.getOrDefault(activity.getId(), List.of()), activity.getShareMode(),
+                        safe(readJson(activity.getSharedTravelerIdsJson(), new TypeReference<List<String>>() {})),
+                        emptyMap(readJson(activity.getPersonalAmountsJson(), new TypeReference<Map<String, BigDecimal>>() {}))))
                 .toList();
         List<ExtraDto> extras = trip.getExtras().stream()
                 .map(extra -> new ExtraDto(extra.getId(), extra.getLabel(), extra.getCategory(),
@@ -483,15 +547,44 @@ public class TripService {
                 trip.getStartDate(), trip.getEndDate(), trip.getDescription(), trip.getBudget(),
                 checklist, geo, rootMemories, extras, trip.getColor(), photos.isPhotoKey(trip.getCover())
                         ? "/api/trips/" + trip.getId() + "/photos/cover" : trip.getCover(),
-                trip.getTagline(), activities);
+                trip.getTagline(), activities, trip.isGroupTrip(),
+                safe(readJson(trip.getTravelersJson(), new TypeReference<List<TravelerDto>>() {})),
+                emptyMap(readJson(trip.getCategoryShareModesJson(), new TypeReference<Map<String, String>>() {})));
     }
 
     private static <T> List<T> safe(List<T> values) {
         return values == null ? List.of() : values;
     }
 
+    private static <K, V> Map<K, V> emptyMap(Map<K, V> values) {
+        return values == null ? Map.of() : values;
+    }
+
     private static String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JacksonException exception) {
+            throw new IllegalStateException("Could not serialize group trip settings", exception);
+        }
+    }
+
+    private <T> T readJson(String value, TypeReference<T> type) {
+        if (value == null || value.isBlank()) {
+            try {
+                return objectMapper.readValue("null", type);
+            } catch (JacksonException exception) {
+                throw new IllegalStateException("Could not read group trip settings", exception);
+            }
+        }
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (JacksonException exception) {
+            throw new IllegalStateException("Stored group trip settings are invalid", exception);
+        }
     }
 
     private static void requireUniqueId(Set<String> ids, String id) {
