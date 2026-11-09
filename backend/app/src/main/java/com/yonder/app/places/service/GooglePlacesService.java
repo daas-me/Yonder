@@ -146,7 +146,7 @@ public class GooglePlacesService {
         }
         if (types != null && types.isArray()) {
             for (JsonNode type : types) {
-                if (expectedType.equals(type.asText())) {
+                if (type.isString() && expectedType.equals(type.stringValue())) {
                     return true;
                 }
             }
@@ -158,7 +158,7 @@ public class GooglePlacesService {
         List<String> amenities = new ArrayList<>();
         if (types != null && types.isArray()) {
             for (JsonNode type : types) {
-                String rawType = type.asText();
+                String rawType = type.isString() ? type.stringValue() : null;
                 String label = humanize(rawType);
                 if (!GENERIC_TYPES.contains(rawType) && label != null && !label.isBlank() && amenities.size() < 6) {
                     amenities.add(label);
@@ -173,7 +173,11 @@ public class GooglePlacesService {
             return null;
         }
         List<String> descriptions = new ArrayList<>();
-        weekdayDescriptions.forEach(value -> descriptions.add(value.asText()));
+        weekdayDescriptions.forEach(value -> {
+            if (value.isString()) {
+                descriptions.add(value.stringValue());
+            }
+        });
         return descriptions.isEmpty() ? null : String.join(" · ", descriptions);
     }
 
@@ -187,7 +191,7 @@ public class GooglePlacesService {
         for (String field : path) {
             value = value.path(field);
         }
-        return value.isTextual() ? value.asText() : null;
+        return value.isString() ? value.stringValue() : null;
     }
 
     private String humanize(String value) {

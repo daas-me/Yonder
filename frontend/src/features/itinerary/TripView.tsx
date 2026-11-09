@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, assetUrl, geocode, shareLink, type Weather, weatherFor, weatherLabel } from '../../services'
-import { type Activity, type Cat, catOf, CATS, type Check, Confirm, dayList, daysBetween, fmt, fmtTime, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, total, totalActual, type Trip, uid } from '../../shared'
-import { BudgetModal, BudgetTiles, LimitBar } from '../budget'
+import { type Activity, type Cat, catOf, CATS, type Check, Confirm, defaultTripCover, dayList, daysBetween, fmt, fmtTime, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, total, totalActual, type Trip, uid } from '../../shared'
+import { BudgetModal, BudgetOverview } from '../budget'
 import { Discover } from '../discover'
 import { MapSnap, MapView } from '../map'
 import { compress, delPhotos, downloadMemories, MemoriesModal } from '../memories'
@@ -17,6 +17,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
   const [actForm, setActForm] = useState<{ act?: Activity; init?: Partial<Activity> } | null>(null)
   const [confirm, setConfirm] = useState<null | { kind: 'trip' } | { kind: 'act'; id: string }>(null)
   const [mode, setMode] = useState<'timeline' | 'board' | 'map' | 'discover'>(fresh && !readOnly ? 'discover' : 'timeline')
+  const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const [share, setShare] = useState('')
   const [shareExpires, setShareExpires] = useState('')
   const [shareBusy, setShareBusy] = useState(false)
@@ -27,6 +28,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
   const [coverOpen, setCoverOpen] = useState(false)
   const [journal, setJournal] = useState<null | 'trip' | string>(null)
   const tripRef = useRef(trip)
+  const viewMenuRef = useRef<HTMLDivElement>(null)
   tripRef.current = trip
 
   const sorted = useMemo(() => sortActs(trip.activities), [trip.activities])
@@ -37,8 +39,21 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
   const logged = trip.activities.filter(a => a.actual != null)
   const today = new Date().toISOString().slice(0, 10)
   const status = today < trip.start ? `Starts in ${daysBetween(today, trip.start) - 1} days` : today > trip.end ? 'Completed' : 'Happening now'
-  const byCat = (Object.keys(CATS) as Cat[]).map(c => ({ c, v: trip.activities.filter(a => catOf(a) === c).reduce((s, a) => s + planned(a), 0) + (trip.extras ?? []).filter(e => e.category === c).reduce((s, e) => s + e.est, 0) })).filter(x => x.v > 0)
-
+  useEffect(() => {
+    if (!viewMenuOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !viewMenuRef.current?.contains(event.target)) setViewMenuOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setViewMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [viewMenuOpen])
   // Weather: geocode destination once, then load per-day weather
   useEffect(() => {
     let live = true
@@ -122,17 +137,67 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
     )
   }
 
-  const tab = (k: typeof mode, label: string) => (
-    <button key={k} onClick={() => setMode(k)} className={`-mb-px border-b-2 px-4 py-2.5 text-sm transition ${mode === k ? 'border-pine font-medium text-ink' : 'border-transparent text-ink/50 hover:text-ink'}`}>{label}</button>
-  )
+  const tabIcon = (k: typeof mode) => {
+    const icon = {
+      timeline: <><path d="M6 5h4a4 4 0 0 1 4 4v2a4 4 0 0 0 4 4h1" /><circle cx="5" cy="5" r="1.5" /><circle cx="19" cy="15" r="1.5" /></>,
+      board: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9h16M9 9v11m6-11v11M7 6.5h.01M12 6.5h.01M17 6.5h.01" /></>,
+      map: <><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" /><path d="M9 3v15m6-12v15" /></>,
+      discover: <><circle cx="12" cy="12" r="9" /><path d="m15.7 8.3-2.4 5-5 2.4 2.4-5 5-2.4Z" /><path d="M12 3v1m9 8h-1" /></>,
+    }[k]
+
+    return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+  }
+
+  const viewOptions: { key: typeof mode; label: string }[] = [
+    { key: 'timeline', label: 'Timeline' },
+    { key: 'board', label: 'Tripboard' },
+    { key: 'map', label: 'Map' },
+    ...(!readOnly ? [{ key: 'discover' as const, label: 'Discover' }] : []),
+  ]
+
+  const tab = (k: typeof mode, label: string) => {
+    const active = mode === k
+
+    return (
+      <button
+        key={k}
+        type="button"
+        onClick={() => setMode(k)}
+        aria-current={active ? 'page' : undefined}
+        className={`group -mb-px inline-flex items-center gap-1 border-b-2 px-1 py-2.5 text-sm transition-colors sm:gap-2 sm:px-4 ${active ? 'border-pine font-semibold text-ink' : 'border-transparent text-ink/50 hover:text-ink'}`}
+      >
+        <span className={`flex h-6 w-5 shrink-0 items-center justify-center transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:rotate-0 motion-reduce:group-hover:scale-100 ${active ? 'text-pine' : 'text-ink/50 group-hover:text-ink/75'}`}>
+          {tabIcon(k)}
+        </span>
+        {label}
+      </button>
+    )
+  }
 
   const heroBtn = 'btn border border-white/25 bg-white/15 px-3 text-white backdrop-blur-md hover:bg-white/30'
 
   return (
     <div>
-      {!readOnly && <button className="no-print btn btn-ghost -ml-3 mb-4 text-ink/70" onClick={onBack}>← My trips</button>}
+      {!readOnly && (
+        <div className="no-print mb-5">
+          <button
+            type="button"
+            aria-label={`Back to My trips from ${trip.name}`}
+            onClick={onBack}
+            className="group inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-card/75 py-1.5 pl-1.5 pr-4 text-sm text-ink/65 shadow-sm backdrop-blur transition-all duration-200 hover:border-pine/25 hover:bg-card hover:text-ink hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pine text-white shadow-sm shadow-pine/20 transition-transform duration-200 group-hover:-translate-x-0.5">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            </span>
+            <span className="font-medium">My trips</span>
+            <span aria-hidden="true" className="text-ink/30">/</span>
+            <span className="max-w-[min(55vw,28rem)] truncate text-ink/50">{trip.name}</span>
+          </button>
+        </div>
+      )}
       <div className="relative mb-8 overflow-hidden rounded-3xl p-6 text-white sm:p-10 print:rounded-none print:!bg-none print:p-0 print:text-black" style={{ backgroundColor: trip.color ?? '#17675b' }}>
-        {trip.cover && <><img src={assetUrl(trip.cover)} alt="" className="no-print absolute inset-0 h-full w-full object-cover" /><div className="no-print absolute inset-0" style={{ background: `linear-gradient(100deg, ${trip.color ?? '#17675b'} 15%, ${trip.color ?? '#17675b'}99 55%, transparent)` }} /></>}
+        <img src={assetUrl(trip.cover ?? defaultTripCover(trip.color, trip.destination))} alt="" className="no-print absolute inset-0 h-full w-full object-cover" />
+        <div className="no-print absolute inset-0" style={{ background: `linear-gradient(100deg, ${trip.color ?? '#17675b'} 15%, ${trip.color ?? '#17675b'}99 55%, transparent)` }} />
         <div className="relative">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -164,7 +229,43 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
       <div className="grid gap-8 lg:grid-cols-[1fr_300px] print:block">
         <div className="min-w-0">
           <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap border-b border-line">{tab('timeline', 'Timeline')}{tab('board', 'Tripboard')}{tab('map', 'Map')}{!readOnly && tab('discover', 'Discover')}</div>
+            <div ref={viewMenuRef} className="relative min-w-0 flex-1 sm:hidden">
+              <button
+                type="button"
+                aria-label="Choose itinerary view"
+                aria-haspopup="listbox"
+                aria-expanded={viewMenuOpen}
+                aria-controls="itinerary-view-options"
+                onClick={() => setViewMenuOpen(open => !open)}
+                className="flex h-11 w-full items-center gap-3 rounded-xl border border-line2 bg-[#f7f8f6] px-3 text-left text-sm font-semibold text-ink shadow-sm transition hover:border-pine/35 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine dark:bg-[#18211f] dark:hover:bg-[#202c29]"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center text-pine">{tabIcon(mode)}</span>
+                <span className="min-w-0 flex-1 truncate">{viewOptions.find(option => option.key === mode)?.label}</span>
+                <svg aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink/45 transition-transform ${viewMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 10 5 5 5-5" /></svg>
+              </button>
+              {viewMenuOpen && (
+                <div id="itinerary-view-options" role="listbox" aria-label="Itinerary views" className="absolute left-0 top-full z-30 mt-2 w-56 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line2 bg-[#f7f8f6] p-1.5 shadow-lg dark:bg-[#18211f]">
+                  {viewOptions.map(option => {
+                    const active = option.key === mode
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => { setMode(option.key); setViewMenuOpen(false) }}
+                        className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm transition ${active ? 'bg-pine/10 font-semibold text-pine' : 'text-ink/70 hover:bg-ink/5 hover:text-ink'}`}
+                      >
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center ${active ? 'text-pine' : 'text-ink/50'}`}>{tabIcon(option.key)}</span>
+                        <span className="flex-1">{option.label}</span>
+                        {active && <svg aria-hidden="true" className="h-4 w-4 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="hidden min-w-0 max-w-full flex-wrap border-b border-line sm:flex">{tab('timeline', 'Timeline')}{tab('board', 'Tripboard')}{tab('map', 'Map')}{!readOnly && tab('discover', 'Discover')}</div>
             <div className="flex gap-2">
               {!readOnly && (mode === 'board' || mode === 'map') && <button className="btn btn-ghost ring-1 ring-line" disabled={locating} onClick={locateAll}>{locating ? 'Pinning…' : 'Pin all locations'}</button>}
               {!readOnly && <button className="btn btn-primary inline-flex items-center justify-center gap-2" onClick={() => setActForm({})}><PlusIcon />Add activity</button>}
@@ -245,9 +346,9 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
           {mode === 'map' && (
             <div>
               <MapView acts={numbered} center={trip.geo} />
-              <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+              <ol className="mt-4 grid min-w-0 gap-2 sm:grid-cols-[repeat(2,minmax(0,1fr))]">
                 {numbered.map(a => (
-                  <li key={a.id} className="flex items-center gap-3 rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-line">
+                  <li key={a.id} className="flex min-w-0 items-center gap-3 rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-line">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ background: CATS[catOf(a)].color }}>{a.n}</span>
                     <span className="min-w-0 flex-1 truncate">{a.title} <span className="text-ink/50">· {a.location}</span></span>
                     {a.lat == null && !readOnly && <button className="text-xs font-semibold text-pine" onClick={async () => toast((await locate(a)) ? 'Pinned' : 'Location not found')}>Pin</button>}
@@ -260,17 +361,8 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
 
         <aside className="h-fit space-y-6 lg:sticky lg:top-24 print:mt-8">
           <div className="rounded-2xl bg-card p-6 ring-1 ring-line break-inside-avoid">
-            <div className="flex items-baseline justify-between"><h3 className="font-display text-xl font-semibold">Budget</h3>
-              <button className="no-print text-xs font-semibold text-pine hover:underline" onClick={() => setBudgetOpen(true)}>Expand table →</button></div>
-            <div className="mt-4 space-y-3"><BudgetTiles t={trip} compact /><LimitBar t={trip} /></div>
-            {byCat.length > 0 && (
-              <div className="mt-5">
-                <div className="flex h-3 overflow-hidden rounded-full">{byCat.map(x => <div key={x.c} style={{ width: `${(x.v / sum) * 100}%`, background: CATS[x.c].color }} />)}</div>
-                <div className="mt-3 space-y-1.5 text-sm">{byCat.map(x => (
-                  <div key={x.c} className="flex items-center justify-between"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: CATS[x.c].color }} />{x.c === 'other' ? 'Misc / Other' : CATS[x.c].label}</span><span>{php(x.v)}</span></div>
-                ))}</div>
-              </div>
-            )}
+            <h3 className="font-display text-xl font-semibold">Budget</h3>
+            <div className="mt-4"><BudgetOverview trip={trip} /></div>
             <button className="no-print btn btn-ghost mt-5 w-full ring-1 ring-line" onClick={() => setBudgetOpen(true)}>View full breakdown</button>
             {!readOnly && <p className="mt-3 text-xs text-ink/50">Log actual spending on each activity, or on misc items in the breakdown.</p>}
           </div>

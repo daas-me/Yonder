@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { assetUrl, fetchAsset, resizeImage } from '../../services'
-import { Modal, THEMES, type Trip } from '../../shared'
+import { defaultTripCover, Modal, THEMES, type Trip } from '../../shared'
 import { getPhoto } from '../memories'
 
 /* Choose a trip cover: upload, reuse a postcard/journal photo, or pick a theme color */
@@ -34,7 +34,7 @@ export default function CoverPicker({ trip, onSave, onClose }: { trip: Trip; onS
   return (
     <Modal title="Trip cover" onClose={onClose}>
       <div className="topo relative mb-5 h-36 overflow-hidden rounded-xl" style={{ backgroundColor: color }}>
-        {cover && <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />}
+        <img src={assetUrl(cover ?? defaultTripCover(color, trip.destination))} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-3">
           <div className="font-display text-lg font-semibold text-white">{trip.name}</div>
           {trip.tagline && <div className="font-hand text-xl leading-none text-white/90">{trip.tagline}</div>}

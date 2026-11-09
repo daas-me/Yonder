@@ -47,7 +47,9 @@ public class UserService {
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setCreatedAt(Instant.now());
-        return toDto(users.save(user));
+        user = users.save(user);
+        trips.createStarterTrip(email);
+        return toDto(user);
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,23 @@
 import { type Activity, type Trip } from './model'
 
+const TRIP_COVER_THEMES: Record<string, string> = {
+  '#17675b': 'pine',
+  '#ec6a3c': 'sunset',
+  '#2f6f9f': 'sea',
+  '#7a5cc4': 'violet',
+  '#c2507a': 'rose',
+  '#b8862b': 'gold',
+  '#3c4a46': 'slate',
+  '#0f8a8a': 'lagoon',
+}
+const COASTAL_DESTINATION = /\b(coast|coastal|beach|island|islands|bay|cove|lagoon|shore|palawan|siargao|boracay|el nido|coron|cebu|bohol|samar|camiguin|la union)\b/i
+
+export function defaultTripCover(color?: string, destination?: string) {
+  const theme = TRIP_COVER_THEMES[color?.toLowerCase() ?? '']
+  const landscape = COASTAL_DESTINATION.test(destination ?? '') ? 'coast' : 'mountains'
+  return theme ? `/covers/yonder-${theme}-${landscape}.svg` : `/covers/yonder-default-cover${landscape === 'coast' ? '-coast' : ''}.svg`
+}
+
 export const uid = () => Math.random().toString(36).slice(2, 10)
 export const load = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) || '') as T } catch { return d } }
 export const php = (n: number) => 'PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

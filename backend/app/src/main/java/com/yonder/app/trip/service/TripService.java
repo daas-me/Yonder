@@ -1,12 +1,16 @@
 package com.yonder.app.trip.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -203,9 +207,38 @@ public class TripService {
         trip.setId(request.id());
         trip.setUser(user);
         applyTripFields(trip, request);
-        trips.save(trip);
+        trip = trips.save(trip);
         applyChildren(trip, request);
         return toDto(trip);
+    }
+
+    @Transactional
+    public TripDto createStarterTrip(String email) {
+        LocalDate start = LocalDate.now().plusDays(14);
+        String tripId = "starter-" + UUID.randomUUID();
+        List<ActivityDto> activities = List.of(
+                new ActivityDto(
+                        "starter-" + UUID.randomUUID(), "sights", "Explore Burnham Park",
+                        start, LocalTime.of(9, 0), "Burnham Park, Baguio City",
+                        new BigDecimal("0.00"), null, null, "Take a relaxed walk around the lake.",
+                        "/sample-images/burnham-park.svg", 16.4091, 120.5969, List.of()),
+                new ActivityDto(
+                        "starter-" + UUID.randomUUID(), "food", "Try local strawberry treats",
+                        start.plusDays(1), LocalTime.of(10, 0), "La Trinidad Strawberry Farm",
+                        new BigDecimal("250.00"), null, null, "A simple stop for a local favorite.",
+                        "/sample-images/strawberry-farm.svg", 16.4556, 120.5903, List.of()));
+        TripDto starter = new TripDto(
+                tripId, null, "Your sample: Baguio weekend", "Baguio City, Philippines",
+                start, start.plusDays(1),
+                "This editable sample shows how a trip, itinerary, budget, checklist, and images come together. Delete it whenever you like.",
+                new BigDecimal("3500.00"),
+                List.of(new CheckDto("starter-" + UUID.randomUUID(), "Bring a light jacket", false)),
+                new GeoDto(16.4023, 120.5960), List.of(),
+                List.of(new ExtraDto("starter-" + UUID.randomUUID(), "Snacks and small expenses",
+                        "other", new BigDecimal("500.00"), null)),
+                "#17675b", "/sample-images/baguio-cover.svg",
+                "A little example itinerary — edit or delete it anytime.", activities);
+        return create(email, starter);
     }
 
     @Transactional

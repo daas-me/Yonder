@@ -28,6 +28,7 @@ class DemoDataSeederTests {
         assertFalse(user.getPasswordHash().equals("YonderDemo2026!"));
         var demoTrips = trips.list("demo@yonder.local");
         assertEquals(1, demoTrips.size());
-        assertEquals("Baguio Sample Weekend", demoTrips.get(0).name());
+        assertEquals("Your sample: Baguio weekend", demoTrips.get(0).name());
+        assertEquals("/sample-images/baguio-cover.svg", demoTrips.get(0).cover());
     }
 }

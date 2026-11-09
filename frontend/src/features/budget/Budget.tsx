@@ -1,6 +1,8 @@
+import { useEffect, useId } from 'react'
 import { type Activity, type Cat, catOf, CATS, dayList, type Extra, fmt, fmtTime, php, planned as plannedCost, PlusIcon, sortActs, type Trip, uid } from '../../shared'
 
 const r2 = (v: string) => { const n = Math.round(Math.max(0, Number(v) || 0) * 100) / 100; return Math.min(n, 9999999999.99) }
+const phpCompact = (v: number) => `₱${Math.round(v).toLocaleString('en-PH')}`
 
 export function budgetStats(t: Trip) {
   const ex = t.extras ?? []
@@ -11,6 +13,128 @@ export function budgetStats(t: Trip) {
   const planned = actEst + miscEst, actual = actAct + miscAct
   const logged = t.activities.some(a => a.actual != null) || ex.some(e => e.actual != null)
   return { actEst, miscEst, actAct, miscAct, planned, actual, logged, limit: t.budget }
+}
+
+export function budgetCategoryBreakdown(t: Trip) {
+  const categories = (Object.keys(CATS) as Cat[])
+    .map(category => ({
+      key: category,
+      label: category === 'other' ? 'Misc / Other' : CATS[category].label,
+      value: t.activities.filter(activity => catOf(activity) === category).reduce((sum, activity) => sum + plannedCost(activity), 0)
+        + (t.extras ?? []).filter(extra => extra.category === category).reduce((sum, extra) => sum + extra.est, 0),
+      color: CATS[category].color,
+    }))
+    .filter(category => category.value > 0)
+    .sort((a, b) => b.value - a.value)
+
+  const visible: Array<{ key: string; label: string; value: number; color: string }> = categories.slice(0, 3)
+  const remaining = categories.slice(3)
+  if (remaining.length) {
+    visible.push({
+      key: 'more',
+      label: `${remaining.length} more`,
+      value: remaining.reduce((sum, category) => sum + category.value, 0),
+      color: '#8b948e',
+    })
+  }
+  return visible
+}
+
+function BudgetPlanSummary({ trip, boxed = true }: { trip: Trip; boxed?: boolean }) {
+  const stats = budgetStats(trip)
+  const hasLimit = stats.limit != null && stats.limit > 0
+  const remaining = hasLimit ? stats.limit! - stats.planned : undefined
+  const usage = hasLimit ? Math.min(100, (stats.planned / stats.limit!) * 100) : 0
+
+  return (
+    <section className={boxed ? 'rounded-xl p-4 ring-1 ring-line' : ''} aria-label="Planned budget summary">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-ink/50">Planned budget</div>
+      <div className="mt-1 font-display text-2xl font-semibold tabular-nums">{phpCompact(stats.planned)}</div>
+      {hasLimit && (
+        <div className={`mt-2 inline-flex max-w-full rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ${remaining! < 0 ? 'bg-clay/10 text-clay' : 'bg-pine/10 text-pine'}`}>
+          <span className="truncate">{remaining! < 0 ? `${phpCompact(Math.abs(remaining!))} over` : `${phpCompact(remaining!)} left`} of {phpCompact(stats.limit!)} limit</span>
+        </div>
+      )}
+      {hasLimit && (
+        <>
+          <div
+            role="progressbar"
+            aria-label="Planned budget used"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, Math.round(usage))}
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-ink/10"
+          >
+            <div
+              className={`h-full rounded-full transition-[width] ${remaining! < 0 ? 'bg-clay' : 'bg-pine'}`}
+              style={{ width: `${usage}%` }}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] text-ink/45">
+            <span>Activities {phpCompact(stats.actEst)} · Misc {phpCompact(stats.miscEst)}</span>
+            <span>Limit</span>
+          </div>
+        </>
+      )}
+      {!hasLimit && <p className="mt-2 text-xs text-ink/50">Activities {phpCompact(stats.actEst)} · Misc {phpCompact(stats.miscEst)}</p>}
+    </section>
+  )
+}
+
+function BudgetCategorySummary({ trip, boxed = true }: { trip: Trip; boxed?: boolean }) {
+  const categories = budgetCategoryBreakdown(trip)
+  const planned = budgetStats(trip).planned
+  const largest = categories[0]
+  const stops: string[] = []
+  let percentage = 0
+  categories.forEach(category => {
+    const start = percentage
+    percentage += (category.value / planned) * 100
+    stops.push(`${category.color} ${start}% ${percentage}%`)
+  })
+
+  return (
+    <section className={boxed ? 'rounded-xl p-4 ring-1 ring-line' : 'mt-4 border-t border-line pt-4'} aria-label="Planned budget by category">
+      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-ink/50">Where it goes</h4>
+      {categories.length > 0 ? (
+        <div className="mt-3 grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-3">
+          <div
+            role="img"
+            aria-label={`${Math.round((largest.value / planned) * 100)}% ${largest.label}`}
+            className="relative aspect-square w-[5.5rem] rounded-full"
+            style={{ background: `conic-gradient(${stops.join(', ')})` }}
+          >
+            <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-card text-center">
+              <span className="text-sm font-semibold leading-tight">{Math.round((largest.value / planned) * 100)}%</span>
+              <span className="max-w-full truncate px-1 text-[9px] leading-tight text-ink/50">{largest.label}</span>
+            </div>
+          </div>
+          <ul className="min-w-0 space-y-1.5">
+            {categories.map(category => (
+              <li key={category.key} className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-2 text-ink/75">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                  <span className="truncate">{category.label}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-ink/60">{phpCompact(category.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-ink/50">Add activities or expenses to see your planned budget split.</p>
+      )}
+    </section>
+  )
+}
+
+export function BudgetOverview({ trip }: { trip: Trip }) {
+  return (
+    <div className="rounded-xl bg-sand/35 p-4 ring-1 ring-line">
+      <BudgetPlanSummary trip={trip} boxed={false} />
+      <BudgetCategorySummary trip={trip} boxed={false} />
+    </div>
+  )
 }
 
 /* Inline editable list of trip-level miscellaneous / other costs */
@@ -100,36 +224,78 @@ const varCell = (est: number, act?: number) => {
 }
 const num = (v: number) => v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+export function budgetCsvRows(trip: Trip) {
+  const stats = budgetStats(trip)
+  const days = dayList(trip.start, trip.end)
+  const rows = [['Section', 'Day', 'Date', 'Time', 'Item', 'Category', 'Budgeted (PHP)', 'Actual (PHP)', 'Variance (PHP)']]
+  const extras = trip.extras ?? []
+  sortActs(trip.activities).forEach(activity => {
+    const planned = plannedCost(activity)
+    rows.push([
+      'Activity',
+      String(days.indexOf(activity.date) + 1),
+      activity.date,
+      activity.time,
+      activity.title,
+      CATS[catOf(activity)].label,
+      planned.toFixed(2),
+      activity.actual?.toFixed(2) ?? '',
+      activity.actual != null ? (activity.actual - planned).toFixed(2) : '',
+    ])
+  })
+  extras.forEach(extra => rows.push([
+    'Misc / Other', '', '', '', extra.label, CATS[extra.category].label,
+    extra.est.toFixed(2), extra.actual?.toFixed(2) ?? '',
+    extra.actual != null ? (extra.actual - extra.est).toFixed(2) : '',
+  ]))
+  rows.push(['TOTAL', '', '', '', '', '', stats.planned.toFixed(2), stats.actual.toFixed(2), (stats.actual - stats.planned).toFixed(2)])
+  if (stats.limit) rows.push(['BUDGET LIMIT', '', '', '', '', '', stats.limit.toFixed(2), '', ''])
+  return rows
+}
+
 export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip; readOnly?: boolean; onUpdate: (t: Trip) => void; onClose: () => void }) {
+  const titleId = useId()
   const s = budgetStats(trip)
   const days = dayList(trip.start, trip.end)
   const acts = sortActs(trip.activities)
   const extras = trip.extras ?? []
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
   const cats = (Object.keys(CATS) as Cat[]).map(c => {
     const a = acts.filter(x => catOf(x) === c), e = extras.filter(x => x.category === c)
-    return { c, est: a.reduce((s, x) => s + plannedCost(x), 0) + e.reduce((s, x) => s + x.est, 0), act: a.reduce((s, x) => s + (x.actual ?? 0), 0) + e.reduce((s, x) => s + (x.actual ?? 0), 0), n: a.length + e.length }
+    return {
+      c,
+      est: a.reduce((s, x) => s + plannedCost(x), 0) + e.reduce((s, x) => s + x.est, 0),
+      act: a.reduce((s, x) => s + (x.actual ?? 0), 0) + e.reduce((s, x) => s + (x.actual ?? 0), 0),
+      logged: a.some(x => x.actual != null) || e.some(x => x.actual != null),
+      n: a.length + e.length,
+    }
   }).filter(x => x.n)
 
   const csv = () => {
     const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
-    const rows = [['Section', 'Day', 'Date', 'Time', 'Item', 'Category', 'Budgeted (PHP)', 'Actual (PHP)', 'Variance (PHP)']]
-    acts.forEach(a => rows.push(['Activity', String(days.indexOf(a.date) + 1), a.date, a.time, a.title, CATS[catOf(a)].label, a.cost.toFixed(2), a.actual?.toFixed(2) ?? '', a.actual != null ? (a.actual - a.cost).toFixed(2) : '']))
-    extras.forEach(e => rows.push(['Misc / Other', '', '', '', e.label, CATS[e.category].label, e.est.toFixed(2), e.actual?.toFixed(2) ?? '', e.actual != null ? (e.actual - e.est).toFixed(2) : '']))
-    rows.push(['TOTAL', '', '', '', '', '', s.planned.toFixed(2), s.actual.toFixed(2), (s.actual - s.planned).toFixed(2)])
-    if (s.limit) rows.push(['BUDGET LIMIT', '', '', '', '', '', s.limit.toFixed(2), '', ''])
+    const rows = budgetCsvRows(trip)
     const url = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }))
     const el = document.createElement('a'); el.href = url; el.download = `${trip.name} budget.csv`; el.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onClick={onClose}>
-      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
-          <div><h3 className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in PHP</p></div>
+          <div><h3 id={titleId} className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in PHP</p></div>
           <div className="flex gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost px-3" aria-label="Close" onClick={onClose}>✕</button></div>
         </div>
         <div className="min-h-0 flex-1 space-y-8 overflow-auto p-6">
-          <div className="space-y-3"><BudgetTiles t={trip} /><LimitBar t={trip} /></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <BudgetPlanSummary trip={trip} />
+          <BudgetCategorySummary trip={trip} />
+        </div>
 
           <section>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-ink/50">Itinerary activities</h4>
@@ -176,7 +342,7 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
             <div className="rounded-xl p-3 ring-1 ring-line"><ExtrasEditor items={extras} readOnly={readOnly} onChange={x => onUpdate({ ...trip, extras: x })} /></div>
           </section>
 
-          <section className="grid gap-6 md:grid-cols-2">
+          <section>
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-ink/50">By category</h4>
               <div className="overflow-hidden rounded-xl ring-1 ring-line">
@@ -187,32 +353,20 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
                       <td className="px-3 py-2"><span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: CATS[x.c].color }} />{x.c === 'other' ? 'Misc / Other' : CATS[x.c].label}</span></td>
                       <td className="px-3 py-2 text-right text-ink/60">{s.planned ? Math.round((x.est / s.planned) * 100) : 0}%</td>
                       <td className="px-3 py-2 text-right tabular-nums">{num(x.est)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{x.act ? num(x.act) : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{x.logged ? num(x.act) : '—'}</td>
                     </tr>
-                  ))}</tbody>
+                  ))}
+                    <tr className="bg-moss/40 font-semibold">
+                      <td className="px-3 py-2">Total</td>
+                      <td className="px-3 py-2 text-right text-ink/60">{s.planned ? '100%' : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{num(s.planned)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.logged ? num(s.actual) : '—'}</td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
-            <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-ink/50">Summary</h4>
-              <table className="w-full overflow-hidden rounded-xl text-sm ring-1 ring-line">
-                <tbody>
-                  {([
-                    ['Activities budget', s.actEst, s.actAct],
-                    ['Misc / other budget', s.miscEst, s.miscAct],
-                  ] as [string, number, number][]).map(([l, e, a]) => (
-                    <tr key={l} className="border-b border-line"><td className="px-3 py-2 text-ink/70">{l}</td><td className="px-3 py-2 text-right tabular-nums">{num(e)}</td><td className="px-3 py-2 text-right tabular-nums text-ink/60">{num(a)}</td></tr>
-                  ))}
-                  <tr className="border-b border-line bg-moss/40 font-semibold"><td className="px-3 py-2">Total budget / actual</td><td className="px-3 py-2 text-right tabular-nums">{num(s.planned)}</td><td className="px-3 py-2 text-right tabular-nums">{num(s.actual)}</td></tr>
-                  <tr className="border-b border-line"><td className="px-3 py-2 text-ink/70">Budget limit</td><td className="px-3 py-2 text-right tabular-nums" colSpan={2}>{s.limit ? num(s.limit) : 'Not set'}</td></tr>
-                  {s.limit != null && s.limit > 0 && <>
-                    <tr className="border-b border-line"><td className="px-3 py-2 text-ink/70">Limit − budget</td><td className={`px-3 py-2 text-right tabular-nums ${s.limit - s.planned < 0 ? 'text-clay' : 'text-pine'}`} colSpan={2}>{num(s.limit - s.planned)}</td></tr>
-                    <tr><td className="px-3 py-2 text-ink/70">Limit − actual (remaining)</td><td className={`px-3 py-2 text-right font-semibold tabular-nums ${s.limit - s.actual < 0 ? 'text-clay' : 'text-pine'}`} colSpan={2}>{num(s.limit - s.actual)}</td></tr>
-                  </>}
-                </tbody>
-              </table>
-              <p className="mt-2 text-xs text-ink/50">Budgeted figures come from your own estimates. Yonder doesn't book anything or check live prices.</p>
-            </div>
+            <p className="mt-3 text-xs text-ink/50">Budgeted figures come from your own estimates. Yonder doesn't book anything or check live prices.</p>
           </section>
         </div>
       </div>

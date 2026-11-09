@@ -1,7 +1,7 @@
 // Runtime validation coverage for: trip budgeting and schedule ordering.
 import { describe, expect, it } from 'vitest'
 import type { Activity, Trip } from './model'
-import { daysBetween, sortActs, total } from './utils'
+import { daysBetween, defaultTripCover, sortActs, total } from './utils'
 
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
   id: 'activity-1',
@@ -27,6 +27,12 @@ const trip = (activities: Activity[], extras: Trip['extras'] = []): Trip => ({
 })
 
 describe('trip planning utilities', () => {
+  it('chooses a default cover that matches the trip theme and destination', () => {
+    expect(defaultTripCover('#7a5cc4', 'El Nido, Palawan')).toBe('/covers/yonder-violet-coast.svg')
+    expect(defaultTripCover('#17675b', 'Baguio')).toBe('/covers/yonder-pine-mountains.svg')
+    expect(defaultTripCover(undefined, 'Coron')).toBe('/covers/yonder-default-cover-coast.svg')
+  })
+
   it('counts trip days inclusively so nights are one fewer than days', () => {
     const days = daysBetween('2026-06-12', '2026-06-13')
 
