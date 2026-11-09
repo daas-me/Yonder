@@ -33,6 +33,11 @@ yonder:
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:8443}
   storage:
+    provider: ${PHOTO_STORAGE_PROVIDER:local}
     photos-directory: ${PHOTO_STORAGE_DIR:./data/photos}
+    supabase:
+      url: ${SUPABASE_URL:}
+      service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+      bucket: ${SUPABASE_STORAGE_BUCKET:yonder-photos}
   google:
     places-api-key: ${GOOGLE_PLACES_API_KEY:}

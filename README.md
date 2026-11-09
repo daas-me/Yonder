@@ -64,6 +64,12 @@ Restart Vite after changing the environment file. Vite exposes this browser key 
 
 Use a separate Places key that stays on the server. Configure it as `GOOGLE_PLACES_API_KEY` in the backend environment, and restrict it to the Places API (New) and the backend's outbound IP address where supported. Do not reuse the browser key, add the Places key to frontend environment variables, or commit it. Discover still shows Wikivoyage suggestions when Google Places is not configured or temporarily unavailable.
 
+## Photo storage
+
+The backend can store uploaded JPEG photos in Supabase Storage. In Supabase, create a **private** bucket named `yonder-photos` (or choose another name and configure it). On Render, set `PHOTO_STORAGE_PROVIDER=supabase`, `SUPABASE_URL` to the Supabase project URL, `SUPABASE_SERVICE_ROLE_KEY` to the server-only service role key, and optionally `SUPABASE_STORAGE_BUCKET` if you used a different bucket name. Never expose the service role key to the frontend or commit it. The bucket remains private; photos are served through the API's authenticated routes or expiring shared-trip links.
+
+Local development and tests continue to use local disk by default. Existing photos already on disk are not copied automatically; upload those existing `{photo-key}.jpg` objects to the same bucket while preserving their names before switching a live deployment to Supabase Storage.
+
 ## API
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
