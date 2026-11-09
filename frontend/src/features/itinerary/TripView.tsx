@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, assetUrl, geocode, shareLink, type Weather, weatherFor, weatherLabel } from '../../services'
-import { type Activity, type Cat, catOf, CATS, type Check, Confirm, defaultTripCover, dayList, daysBetween, fmt, fmtTime, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, total, totalActual, type Trip, uid } from '../../shared'
+import { type Activity, type Cat, catOf, CATS, type Check, Confirm, defaultTripCover, dayList, daysBetween, fmt, fmtTemp, fmtTime, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, total, totalActual, type Trip, uid } from '../../shared'
 import { BudgetModal, BudgetOverview } from '../budget'
 import { Discover } from '../discover'
 import { MapSnap, MapView } from '../map'
@@ -131,7 +131,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
     if (!w) return null
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-moss px-2.5 py-0.5 text-xs text-ink/80" title={w.kind === 'lastyear' ? 'Same day last year (forecast opens ~16 days before)' : w.kind === 'history' ? 'Recorded weather' : 'Forecast'}>
-        <WeatherIcon code={w.code} size={14} /> {weatherLabel(w.code)} {Math.round(w.max)}°/{Math.round(w.min)}°
+        <WeatherIcon code={w.code} size={14} /> {weatherLabel(w.code)} {fmtTemp(w.max)}/{fmtTemp(w.min)}
         {w.kind === 'lastyear' && <span className="text-ink/50">· last yr</span>}
         {w.rain != null && <span className="text-ink/50">· {w.rain}% rain</span>}
       </span>

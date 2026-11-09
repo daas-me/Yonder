@@ -1,5 +1,5 @@
 import { assetUrl, type Weather } from '../../services'
-import { type Activity, catOf, CATS, fmt, fmtTime, php, type Trip } from '../../shared'
+import { type Activity, catOf, CATS, fmt, fmtTemp, fmtTime, php, type Trip } from '../../shared'
 import { MapSnap } from '../map'
 import { downloadMemories } from '../memories'
 import { WeatherIcon } from '../weather'
@@ -33,7 +33,7 @@ export default function Tripboard({ trip, days, weather, readOnly, memCount, onO
                   <section key={d.date}>
                     <div className="mb-5 flex flex-wrap items-center gap-3">
                       <div className="tape relative rotate-[-2deg] bg-[#fdf3c4] px-4 py-1.5 font-hand text-2xl text-[#3b3b3b] shadow-md">Day {i + 1} · {fmt(d.date, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                      {weather[d.date] && <span className="rotate-1 bg-white/90 px-2 py-1 text-xs text-black shadow"><span className="inline-flex items-center gap-1"><WeatherIcon code={weather[d.date].code} size={14} />{Math.round(weather[d.date].max)}°</span></span>}
+                      {weather[d.date] && <span className="rotate-1 bg-white/90 px-2 py-1 text-xs text-black shadow"><span className="inline-flex items-center gap-1"><WeatherIcon code={weather[d.date].code} size={14} />{fmtTemp(weather[d.date].max)}</span></span>}
                     </div>
                     {d.acts.length === 0 ? <p className="font-hand text-2xl text-white/80">free day — wander!</p> : (
                       <div className="grid gap-7 sm:grid-cols-2 xl:grid-cols-3">

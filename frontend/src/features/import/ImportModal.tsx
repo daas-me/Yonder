@@ -50,7 +50,13 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
   }
 
   return (
-    <Modal title={parsed ? 'Review your itinerary' : 'Import an itinerary'} onClose={onClose}>
+    <Modal
+      title={parsed ? 'Review your itinerary' : 'Import an itinerary'}
+      eyebrow={parsed ? 'ITINERARY FOUND' : 'BRING YOUR PLANS'}
+      subtitle={parsed ? 'Check the trip details and activities before adding them to Yonder.' : 'Start with a file or paste your notes. We’ll turn them into a trip you can edit.'}
+      icon={<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" /></svg>}
+      onClose={onClose}
+    >
       {!parsed ? (
         <div className="space-y-4">
           <label onDragOver={e => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={e => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files[0]) }}

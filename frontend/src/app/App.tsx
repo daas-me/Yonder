@@ -1,15 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { AccountPage } from '../features/account'
+import { AccountPage, type AccountTab } from '../features/account'
 import { AuthPage } from '../features/auth'
 import { ImportModal } from '../features/import'
 import { TripView } from '../features/itinerary'
 import { delPhotos, photoIds } from '../features/memories'
+import { NotificationBell } from '../features/notifications'
 import { TripForm, TripList } from '../features/trips'
 import { ApiError, api, assetUrl, readShareToken } from '../services'
-import { Confirm, load, Logo, type Trip, uid, type User } from '../shared'
+import { Confirm, DEFAULT_PREFS, display, load, Logo, notificationsFor, prefsOf, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
-type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account' }
+type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
+
+function initialTheme(): ThemePref {
+  const saved = load<unknown>('yonder.theme', null)
+  if (saved === 'light' || saved === 'dark' || saved === 'system') return saved
+  if (localStorage.getItem('yonder.dark') != null) return load<boolean>('yonder.dark', false) ? 'dark' : 'light'
+  return 'system'
+}
 
 function initialView(): AppView {
   try {
@@ -27,10 +35,10 @@ function initialView(): AppView {
 
 function UserAvatar({ user, className = 'h-10 w-10' }: { user: User; className?: string }) {
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-clay/15 font-semibold text-clay ring-1 ring-ink/5 ${className}`} aria-hidden="true">
+    <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white ring-1 ring-ink/5 ${className}`} style={{ backgroundColor: user.avatarColor ?? '#ec6a3c' }} aria-hidden="true">
       {user.photoUrl
         ? <img src={assetUrl(user.photoUrl)} alt="" className="h-full w-full object-cover" />
-        : (user.name.trim()[0] || user.email[0] || '?').toUpperCase()}
+        : user.name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || user.email[0]?.toUpperCase() || '?'}
     </span>
   )
 }
@@ -52,8 +60,71 @@ export default function App() {
   const [shared, setShared] = useState<Trip | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [shareError, setShareError] = useState('')
-  const [dark, setDark] = useState<boolean>(() => load('yonder.dark', false))
-  useEffect(() => { document.documentElement.classList.toggle('dark', dark); localStorage.setItem('yonder.dark', JSON.stringify(dark)) }, [dark])
+  const [theme, setTheme] = useState<ThemePref>(initialTheme)
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+  const dark = theme === 'system' ? systemDark : theme === 'dark'
+  const setDark = (value: boolean) => setTheme(value ? 'dark' : 'light')
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!media) return
+    const update = (event: MediaQueryListEvent) => setSystemDark(event.matches)
+    setSystemDark(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+    localStorage.setItem('yonder.theme', JSON.stringify(theme))
+  }, [dark, theme])
+  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
+  const prefsRef = useRef<Prefs>(DEFAULT_PREFS)
+  useEffect(() => {
+    const saved = user ? prefsOf(load<Partial<Prefs> | null>(`yonder.prefs.${user.id}`, null)) : DEFAULT_PREFS
+    prefsRef.current = saved
+    setPrefs(saved)
+  }, [user?.id])
+  const savePrefs = (patch: Partial<Prefs>) => {
+    const next = prefsOf({
+      ...prefsRef.current,
+      ...patch,
+      splitRules: patch.splitRules ?? prefsRef.current.splitRules,
+      notify: patch.notify ?? prefsRef.current.notify,
+    })
+    prefsRef.current = next
+    setPrefs(next)
+    if (user) localStorage.setItem(`yonder.prefs.${user.id}`, JSON.stringify(next))
+  }
+  const packingList = () => prefsRef.current.packing.map(text => ({ id: uid(), text, done: false }))
+  display.clock24 = prefs.clock === '24'
+  display.fahrenheit = prefs.temp === 'f'
+  const mine = user ? trips.filter(trip => trip.ownerId === user.id) : []
+  const allNotes = user ? notificationsFor(mine, prefs.notify) : []
+  const [dismissedState, setDismissedState] = useState<{ userId: string; ids: string[] }>({ userId: '', ids: [] })
+  useEffect(() => {
+    setDismissedState(user ? { userId: user.id, ids: load<string[]>(`yonder.dismissed.${user.id}`, []) } : { userId: '', ids: [] })
+  }, [user?.id])
+  const dismissed = user && dismissedState.userId === user.id ? dismissedState.ids : []
+  const notes = allNotes.filter(note => !dismissed.includes(note.id))
+  const dismissNotes = (ids: string[]) => {
+    if (!user) return
+    const active = new Set(allNotes.map(note => note.id))
+    const next = [...new Set([...dismissed, ...ids])].filter(id => active.has(id))
+    setDismissedState({ userId: user.id, ids: next })
+    localStorage.setItem(`yonder.dismissed.${user.id}`, JSON.stringify(next))
+  }
+  const noteSignature = notes.map(note => note.id).join('|')
+  useEffect(() => {
+    if (!user || !prefs.notify.browser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    const key = `yonder.notified.${user.id}`
+    const shown = new Set(load<string[]>(key, []))
+    for (const note of notes) {
+      if (shown.has(note.id)) continue
+      const popup = new Notification(note.title, { body: note.body, tag: note.id, icon: '/favicon.ico' })
+      popup.onclick = () => { window.focus(); setView({ page: 'trip', id: note.tripId }); popup.close() }
+      shown.add(note.id)
+    }
+    localStorage.setItem(key, JSON.stringify([...shown].slice(-200)))
+  }, [noteSignature, prefs.notify.browser, user?.id])
   useEffect(() => {
     let active = true
     let requestId = 0
@@ -85,7 +156,10 @@ export default function App() {
     api.currentUser()
       .then(async currentUser => ({ currentUser, trips: await api.listTrips() }))
       .then(result => {
-        if (active) { setUser(result.currentUser); setTrips(result.trips) }
+        if (active) {
+          setUser({ ...result.currentUser, avatarColor: load<string>(`yonder.avatarColor.${result.currentUser.id}`, '#ec6a3c') })
+          setTrips(result.trips)
+        }
       })
       .catch(error => {
         if (active && (!(error instanceof ApiError) || error.status !== 401)) {
@@ -100,7 +174,7 @@ export default function App() {
   const signIn = async (email: string, password: string) => {
     const signedInUser = await api.login(email, password)
     const userTrips = await api.listTrips()
-    setUser(signedInUser)
+    setUser({ ...signedInUser, avatarColor: load<string>(`yonder.avatarColor.${signedInUser.id}`, '#ec6a3c') })
     setTrips(userTrips)
     setView({ page: 'trips' })
   }
@@ -160,6 +234,14 @@ export default function App() {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">{dark ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></> : <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />}</svg>
     </button>
   )
+  const bell = (up: boolean) => <NotificationBell
+    notes={notes}
+    up={up}
+    onOpenTrip={id => setView({ page: 'trip', id })}
+    onDismiss={note => dismissNotes([note.id])}
+    onDismissAll={() => dismissNotes(notes.map((note: Note) => note.id))}
+    onSettings={() => setView({ page: 'account', tab: 'notifications' })}
+  />
   const toastEl = msg && <div className="no-print fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm text-sand shadow-lg">{msg}</div>
   const exitShare = () => { history.replaceState(null, '', location.pathname); setShared(null); setShareError(''); setShareLoading(false) }
   if (shareLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Opening shared itinerary…</div>
@@ -201,7 +283,6 @@ export default function App() {
   if (authLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Connecting to Yonder…</div>
   if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage onLogin={signIn} onRegister={register} />{toastEl}</div>
 
-  const mine = trips.filter(t => t.ownerId === user.id)
   const current = view.page === 'trip' ? mine.find(t => t.id === view.id) : undefined
   const updateTrip = persistTrip
 
@@ -279,6 +360,7 @@ export default function App() {
                   <Icon d="M9 18l6-6-6-6" className="h-4 w-4 text-ink/35" />
                 </button>
                 <div className="flex items-center gap-2">
+                  {bell(true)}
                   <button onClick={() => setDark(!dark)} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Switch to light mode' : 'Switch to dark mode'} className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/55 transition hover:bg-ink/5 hover:text-ink">
                     <Icon d={dark ? 'M12 2v2m0 16v2m10-10h-2M4 12H2m17.07 7.07-1.42-1.42M6.35 6.35 4.93 4.93m14.14 0-1.42 1.42M6.35 17.65l-1.42 1.42M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0' : 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'} className="h-4 w-4" />
                   </button>
@@ -292,6 +374,7 @@ export default function App() {
                 <button onClick={openAccount} title={`${user.name} — Account`} aria-label={`${user.name} — Account`} className="profile-trigger group rounded-full transition"><UserAvatar user={user} className="profile-avatar h-9 w-9" /></button>
                 <button onClick={() => setConfirmSignOut(true)} title="Sign out" aria-label="Sign out of Yonder" className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/45 transition hover:bg-clay/10 hover:text-clay"><Icon d="M10 17l5-5-5-5m5 5H3m9-9h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></button>
                 {themeBtn}
+                {bell(true)}
                 <button title="Expand sidebar" aria-label="Expand sidebar" onClick={() => setSide('full')} className="rounded-md p-1.5 text-ink/50 hover:bg-ink/5 hover:text-ink"><Icon d="M9 6l6 6-6 6" /></button>
               </>
             )}
@@ -307,7 +390,7 @@ export default function App() {
       {/* Top bar (mobile) */}
       <header className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-line2 bg-sand px-4 py-3 text-ink shadow-sm lg:hidden">
         <button onClick={() => setView({ page: 'trips' })}><Logo /></button>
-        <div className="flex items-center gap-1">{themeBtn}
+        <div className="flex items-center gap-1">{themeBtn}{bell(false)}
           <button onClick={() => setMenu(!menu)} aria-label="Open account menu" aria-expanded={menu} className="profile-trigger group rounded-full transition"><UserAvatar user={user} className="profile-avatar h-9 w-9" /></button>
         </div>
         {menu && (
@@ -349,31 +432,47 @@ export default function App() {
         ) : (
           <div className="py-20 text-center"><div className="text-sm text-clay">Error 404</div><h2 className="mt-1 font-display text-3xl">Trip not found</h2><button className="btn btn-primary mt-6" onClick={() => setView({ page: 'trips' })}>Back to trips</button></div>
         ))}
-        {view.page === 'account' && <AccountPage user={user} trips={mine} toast={setMsg}
-          onSave={async profile => setUser(await api.updateProfile(profile))}
-          onPhotoUpload={async photo => setUser(await api.uploadProfilePhoto(photo))}
+        {view.page === 'account' && <AccountPage user={user} trips={mine} prefs={prefs} theme={theme} notes={allNotes} initialTab={view.tab} onPrefs={savePrefs} onTheme={setTheme}
+          onSave={async profile => {
+            const saved = await api.updateProfile(profile)
+            setUser(currentUser => currentUser ? { ...saved, avatarColor: currentUser.avatarColor } : saved)
+          }}
+          onPhotoUpload={async photo => {
+            const saved = await api.uploadProfilePhoto(photo)
+            setUser(currentUser => currentUser ? { ...saved, avatarColor: currentUser.avatarColor } : saved)
+          }}
           onPhotoRemove={async () => { await api.deleteProfilePhoto(); setUser(current => current ? { ...current, photoUrl: undefined } : current) }}
           onPasswordChange={(current, next) => api.updatePassword(current, next)}
+          onAvatarColor={color => {
+            localStorage.setItem(`yonder.avatarColor.${user.id}`, color)
+            setUser(current => current ? { ...current, avatarColor: color } : current)
+          }}
+          onSignOut={() => setConfirmSignOut(true)}
+          toast={setMsg}
           onDeleteAccount={async () => {
             await api.deleteAccount()
             delPhotos(mine.flatMap(photoIds))
             setTrips([]); setUser(null); setView({ page: 'trips' })
           }} />}
       </main>
-      {newTrip && <TripForm onClose={() => setNewTrip(false)} onSave={v => {
-        const t: Trip = { ...v, id: uid(), ownerId: user.id, activities: [] }
+      {newTrip && <TripForm defaults={prefs} onClose={() => setNewTrip(false)} onSave={v => {
+        const t: Trip = { ...v, id: uid(), ownerId: user.id, activities: [], checklist: packingList() }
         void createTrip(t).then(saved => { setNewTrip(false); setView({ page: 'trip', id: saved.id, fresh: true }); setMsg('Trip created') })
           .catch(error => setMsg(error instanceof Error ? error.message : 'Could not create trip'))
       }} />}
       {importing && <ImportModal onClose={() => setImporting(false)} onCreate={v => {
-        const t: Trip = { ...v, id: uid(), ownerId: user.id }
+        const t: Trip = { ...v, id: uid(), ownerId: user.id, checklist: v.checklist?.length ? v.checklist : packingList() }
         void createTrip(t).then(saved => { setImporting(false); setView({ page: 'trip', id: saved.id, fresh: true }); setMsg('Itinerary imported') })
           .catch(error => setMsg(error instanceof Error ? error.message : 'Could not import itinerary'))
       }} />}
       {confirmSignOut && <Confirm
         title="Sign out of Yonder?"
-        text="You can sign back in any time to access your trips and account."
+        text="Your trips and account will be here whenever you’re ready to sign back in."
+        eyebrow="YOUR YONDER SESSION"
+        icon={<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M10 17l5-5-5-5m5 5H3" /><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" /></svg>}
+        animated
         confirmLabel="Sign out"
+        confirmClassName="btn bg-clay text-white shadow-sm transition hover:brightness-95"
         onNo={() => setConfirmSignOut(false)}
         onYes={() => void signOut()}
       />}

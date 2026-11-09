@@ -175,6 +175,14 @@ h1.font-display { font-weight: 800; line-height: 1.02; }
 .coming-soon-switch.enabled-switch:checked::before {
   transform: translateX(1rem);
 }
+.bell-ring { transform-origin: 50% 15%; animation: bellRing 6s ease-in-out infinite; }
+@keyframes bellRing {
+  0%, 88%, 100% { transform: rotate(0); }
+  90% { transform: rotate(14deg); }
+  92% { transform: rotate(-12deg); }
+  94% { transform: rotate(8deg); }
+  96% { transform: rotate(-4deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .modal-enter-backdrop, .modal-enter-panel, .trip-confirm-content, .trip-confirm-check,
   .trip-confirm-check::before, .trip-confirm-checkmark path, .trip-confirm-title,
@@ -183,6 +191,7 @@ h1.font-display { font-weight: 800; line-height: 1.02; }
   .nav-tile { transition: none; }
   .group:hover .nav-tile { transform: none; }
   .nav-upcoming-dot { animation: none; }
+  .bell-ring { animation: none; }
   .profile-avatar { transition: none; }
   .profile-trigger:hover .profile-avatar { transform: none; }
 }

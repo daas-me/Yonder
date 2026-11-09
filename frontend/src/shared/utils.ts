@@ -20,9 +20,15 @@ export function defaultTripCover(color?: string, destination?: string) {
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
 export const load = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) || '') as T } catch { return d } }
+export const MAX_PAX = 99
 export const php = (n: number) => 'PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const fmt = (d: string, o: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) => new Date(d + 'T00:00').toLocaleDateString('en-US', o)
-export const fmtTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
+export const display = { clock24: false, fahrenheit: false }
+export const fmtTime = (t: string) => {
+  const [h, m] = t.split(':').map(Number)
+  return display.clock24 ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
+export const fmtTemp = (c: number) => `${Math.round(display.fahrenheit ? c * 9 / 5 + 32 : c)}°`
 /* Cancelled activities free their budget back into headroom */
 export const planned = (a: Activity) => (a.status === 'cancelled' ? 0 : a.cost)
 export const total = (t: Trip) => t.activities.reduce((s, a) => s + planned(a), 0) + (t.extras ?? []).reduce((s, e) => s + e.est, 0)

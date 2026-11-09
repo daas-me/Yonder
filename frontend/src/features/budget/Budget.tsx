@@ -105,7 +105,7 @@ function BudgetCategorySummary({ trip, boxed = true }: { trip: Trip; boxed?: boo
             className="relative aspect-square w-[5.5rem] rounded-full"
             style={{ background: `conic-gradient(${stops.join(', ')})` }}
           >
-            <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-card text-center">
+            <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-white text-center dark:bg-[#18201e]">
               <span className="text-sm font-semibold leading-tight">{Math.round((largest.value / planned) * 100)}%</span>
               <span className="max-w-full truncate px-1 text-[9px] leading-tight text-ink/50">{largest.label}</span>
             </div>
