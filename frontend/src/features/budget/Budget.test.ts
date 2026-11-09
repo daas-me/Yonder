@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Trip } from '../../shared'
+import { display, type Trip } from '../../shared'
 import { budgetCategoryBreakdown, budgetCsvRows } from './Budget'
 
 const trip: Trip = {
@@ -47,6 +47,19 @@ describe('budget CSV export', () => {
     expect(rows.at(-2)).toEqual([
       'TOTAL', '', '', '', '', '', '300.00', '280.00', '-20.00',
     ])
+  })
+
+  it('exports converted amounts and the selected currency code', () => {
+    display.currency = 'USD'
+    display.currencyRate = 0.015829
+    const rows = budgetCsvRows(trip)
+
+    expect(rows[0][6]).toBe('Budgeted (USD)')
+    expect(rows[1][6]).toBe('0.00')
+    expect(rows[2][6]).toBe('3.17')
+
+    display.currency = 'PHP'
+    display.currencyRate = 1
   })
 })
 

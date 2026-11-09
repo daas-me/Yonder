@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, assetUrl, geocode, shareLink, type Weather, weatherFor, weatherLabel } from '../../services'
-import { type Activity, type Cat, catOf, CATS, type Check, Confirm, defaultTripCover, dayList, daysBetween, fmt, fmtTemp, fmtTime, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, total, totalActual, type Trip, uid } from '../../shared'
+import { type Activity, type Cat, catOf, CATS, type Check, Confirm, defaultTripCover, dayList, daysBetween, display, fmt, fmtTemp, fmtTime, fromBaseCurrency, type Memory, Modal, php, planned, PlusIcon, STATUS, type ActStatus, sortActs, toBaseCurrency, total, totalActual, type Trip, uid } from '../../shared'
 import { BudgetModal, BudgetOverview } from '../budget'
 import { Discover } from '../discover'
 import { MapSnap, MapView } from '../map'
@@ -314,10 +314,10 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
                             <div className="no-print mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-dashed border-line2 pt-3">
                               <label className="flex items-center gap-2 text-xs text-ink/60">Actual
                                 <span className="relative">
-                                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/40">₱</span>
-                                  <input key={`${a.id}-${a.actual ?? ''}`} className="input w-28 py-1 pl-6 text-sm tabular-nums" inputMode="decimal" placeholder="0.00" defaultValue={a.actual ?? ''}
+                                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/40">{display.currency}</span>
+                                  <input key={`${a.id}-${a.actual ?? ''}-${display.currency}`} className="input w-32 py-1 pl-10 text-sm tabular-nums" inputMode="decimal" placeholder="0.00" defaultValue={a.actual == null ? '' : fromBaseCurrency(a.actual).toFixed(2)}
                                     onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                    onBlur={e => { const v = e.target.value.trim(); if (v === '') { if (a.actual != null) patchAct(a.id, { actual: undefined }); return } if (!/^\d+(\.\d{1,2})?$/.test(v)) { toast('Enter an amount with up to 2 decimals'); e.target.value = String(a.actual ?? ''); return } if (Number(v) !== a.actual) { patchAct(a.id, { actual: Number(v) }); toast('Spending logged') } }} />
+                                    onBlur={e => { const v = e.target.value.trim(); const initialValue = a.actual == null ? '' : fromBaseCurrency(a.actual).toFixed(2); if (v === initialValue) return; if (v === '') { if (a.actual != null) patchAct(a.id, { actual: undefined }); return } if (!/^\d+(\.\d{1,2})?$/.test(v)) { toast('Enter an amount with up to 2 decimals'); e.target.value = initialValue; return } const baseValue = toBaseCurrency(Number(v)); if (baseValue !== a.actual) { patchAct(a.id, { actual: baseValue }); toast('Spending logged') } }} />
                                 </span>
                               </label>
                               {a.actual != null && <span className={`text-xs font-medium ${a.actual > a.cost ? 'text-clay' : 'text-pine'}`}>{a.actual > a.cost ? `${php(a.actual - a.cost)} over` : a.actual < a.cost ? `${php(a.cost - a.actual)} under` : 'On budget'}</span>}

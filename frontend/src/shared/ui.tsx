@@ -130,8 +130,8 @@ export function Modal({ title, onClose, children, wide, animated = false, eyebro
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center ${animated ? 'modal-enter-backdrop' : ''}`} onClick={onClose}>
-      <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface rounded-2xl shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center ${animated ? 'modal-enter-backdrop' : ''}`} onClick={e => { e.stopPropagation(); onClose() }}>
+      <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between border-b border-line px-5 py-4 sm:px-6 ${eyebrow || subtitle || icon ? 'bg-gradient-to-r from-moss/70 via-card to-clay/[.04] py-5 sm:py-6' : ''}`}>
           <div className="flex min-w-0 items-center gap-3.5">
             {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-pine/10 text-pine ring-1 ring-pine/10">{icon}</span>}
@@ -149,7 +149,7 @@ export function Modal({ title, onClose, children, wide, animated = false, eyebro
   )
 }
 
-export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLabel = 'Delete', confirmClassName = 'btn bg-clay text-white hover:opacity-90', eyebrow, icon, animated = false }: { text: string; onYes: () => void; onNo: () => void; title?: string; confirmLabel?: string; confirmClassName?: string; eyebrow?: string; icon?: ReactNode; animated?: boolean }) {
+export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLabel = 'Delete', confirmClassName = 'btn bg-clay text-white hover:opacity-90', eyebrow = 'PLEASE CONFIRM', icon = <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 9v4m0 4h.01" /><path d="M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z" /></svg>, animated = true }: { text: string; onYes: () => void; onNo: () => void; title?: string; confirmLabel?: string; confirmClassName?: string; eyebrow?: string; icon?: ReactNode; animated?: boolean }) {
   return (
     <Modal title={title} onClose={onNo} eyebrow={eyebrow} icon={icon} animated={animated}>
       <p className="mb-6 text-sm leading-relaxed text-ink/65">{text}</p>

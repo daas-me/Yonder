@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { type Cat, CATS, DEFAULT_CATEGORY_SHARE_MODES, MAX_PAX, php, type Prefs, type CostShareMode } from '../../shared'
+import { type Cat, CATS, DEFAULT_CATEGORY_SHARE_MODES, display, fromBaseCurrency, MAX_PAX, php, toBaseCurrency, type Prefs, type CostShareMode } from '../../shared'
 import { Card, ChipList, Row, Seg } from './controls'
 
 const PACKING = ['Valid ID', 'Phone charger', 'Power bank', 'Toiletries', 'Umbrella', 'Medicine kit', 'Sunscreen', 'Swimwear', 'Jacket', 'Eco bag']
 
 export default function TripDefaults({ prefs, onPrefs }: { prefs: Prefs; onPrefs: (patch: Partial<Prefs>) => void }) {
-  const initialBudgetText = prefs.dailyBudget == null ? '' : String(prefs.dailyBudget)
+  const initialBudgetText = prefs.dailyBudget == null ? '' : fromBaseCurrency(prefs.dailyBudget).toFixed(2)
   const [budgetText, setBudgetText] = useState(initialBudgetText)
   const [savedBudgetText, setSavedBudgetText] = useState(initialBudgetText)
   const [budgetError, setBudgetError] = useState('')
@@ -21,7 +21,7 @@ export default function TripDefaults({ prefs, onPrefs }: { prefs: Prefs; onPrefs
     setBudgetError('')
     if (value === savedBudgetText) return
     setSavedBudgetText(value)
-    onPrefs({ dailyBudget: value ? Number(value) : undefined })
+    onPrefs({ dailyBudget: value ? toBaseCurrency(Number(value)) : undefined })
   }
   const updateCompanions = (companions: string[]) => onPrefs({ companions, pax: Math.min(MAX_PAX, Math.max(prefs.pax, companions.length + 1)) })
   const tripDays = 4
@@ -63,9 +63,9 @@ export default function TripDefaults({ prefs, onPrefs }: { prefs: Prefs; onPrefs
       </Card>
 
       <Card title="Budget" hint="A daily amount can suggest a total limit for new trips.">
-        <Row title="Budget per day (PHP, optional)" hint={`A ${tripDays}-day trip would start with a ${prefs.dailyBudget ? php(prefs.dailyBudget * tripDays) : 'no'} limit.`}>
+        <Row title={`Budget per day (${display.currency}, optional)`} hint={`A ${tripDays}-day trip would start with a ${prefs.dailyBudget ? php(prefs.dailyBudget * tripDays) : 'no'} limit.`}>
           <label className="flex w-full items-center gap-2 sm:w-48">
-            <span className="font-semibold text-pine">₱</span>
+            <span className="font-semibold text-pine">{display.currency}</span>
             <input className="input min-w-0" inputMode="decimal" placeholder="e.g. 2500" value={budgetText}
               onChange={event => { setBudgetText(event.target.value); setBudgetError('') }}
               onBlur={saveBudget}

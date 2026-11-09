@@ -5,14 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-
-import com.yonder.app.places.dto.PlaceDto;
+import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
+
+import com.yonder.app.places.config.GooglePlacesProperties;
+import com.yonder.app.places.dto.PlaceDto;
 
 @Service
 public class GooglePlacesService {
@@ -42,9 +42,9 @@ public class GooglePlacesService {
 
     public GooglePlacesService(
             RestClient restClient,
-            @Value("${yonder.google.places-api-key:}") String apiKey) {
+            GooglePlacesProperties properties) {
         this.restClient = restClient;
-        this.apiKey = apiKey;
+        this.apiKey = properties.placesApiKey();
     }
 
     public List<PlaceDto> nearby(double lat, double lon) {

@@ -28,7 +28,13 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
       else await onLogin(email, f.password)
     } catch (error) {
       const apiError = error instanceof ApiError ? error : undefined
-      setErr(apiError?.fieldErrors ?? { password: apiError?.message ?? 'Could not sign in. Please try again.' })
+      if (mode === 'login' && apiError?.status === 401) {
+        setErr({ form: "We couldn't sign you in. Check your email and password, or choose Create one if you haven't registered yet." })
+      } else if (apiError?.fieldErrors && Object.keys(apiError.fieldErrors).length > 0) {
+        setErr(apiError.fieldErrors)
+      } else {
+        setErr({ form: apiError?.message ?? 'Could not complete your request. Please try again.' })
+      }
     } finally {
       setBusy(false)
     }
@@ -63,6 +69,7 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
           <Field label="Email" error={err.email}><input className="input" type="email" value={f.email} onChange={set('email')} placeholder="you@example.com" /></Field>
           <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 6 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
           {mode === 'register' && <Field label="Confirm password" error={err.confirm}><PasswordInput value={f.confirm} onChange={set('confirm')} placeholder="Re-enter your password" autoComplete="new-password" /></Field>}
+          {err.form && <p role="alert" className="rounded-xl border border-clay/20 bg-clay/10 px-3 py-2.5 text-sm leading-relaxed text-clay">{err.form}</p>}
           <button className="btn btn-primary w-full py-3" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
           <p className="text-center text-sm text-ink/60">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}

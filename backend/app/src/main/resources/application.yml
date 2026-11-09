@@ -2,15 +2,19 @@ spring:
   application:
     name: yonder-api
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/yonder?createDatabaseIfNotExist=true&serverTimezone=UTC}
-    username: ${DB_USERNAME:yonder}
-    password: ${DB_PASSWORD:123456}
+    url: ${DB_URL:jdbc:postgresql://localhost:54322/postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   jpa:
     open-in-view: false
+    properties:
+      "[hibernate.default_schema]": yonder
     hibernate:
       ddl-auto: validate
   flyway:
     enabled: true
+    schemas: yonder
+    default-schema: yonder
   servlet:
     multipart:
       max-file-size: 10MB

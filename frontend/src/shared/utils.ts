@@ -21,9 +21,15 @@ export function defaultTripCover(color?: string, destination?: string) {
 export const uid = () => Math.random().toString(36).slice(2, 10)
 export const load = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) || '') as T } catch { return d } }
 export const MAX_PAX = 99
-export const php = (n: number) => 'PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export const display = { clock24: false, fahrenheit: false, currency: 'PHP', currencyRate: 1 }
+export const currencyCode = () => display.currency
+export const currencySymbol = () => new Intl.NumberFormat('en-US', { style: 'currency', currency: display.currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find(part => part.type === 'currency')?.value ?? display.currency
+export const fromBaseCurrency = (amount: number) => amount * display.currencyRate
+export const toBaseCurrency = (amount: number) => Math.round((amount / display.currencyRate) * 100) / 100
+export const formatAmount = (amount: number, fractionDigits = 2) => fromBaseCurrency(amount).toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits })
+export const php = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: display.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(fromBaseCurrency(n))
+export const phpCompact = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: display.currency, maximumFractionDigits: 0 }).format(fromBaseCurrency(n))
 export const fmt = (d: string, o: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) => new Date(d + 'T00:00').toLocaleDateString('en-US', o)
-export const display = { clock24: false, fahrenheit: false }
 export const fmtTime = (t: string) => {
   const [h, m] = t.split(':').map(Number)
   return display.clock24 ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`

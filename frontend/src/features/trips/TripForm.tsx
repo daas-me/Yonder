@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { assetUrl, resizeImage } from '../../services'
-import { DEFAULT_CATEGORY_SHARE_MODES, daysBetween, defaultTripCover, type Cat, type CostShareMode, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Prefs, type Trip, type TripTraveler, uid } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, daysBetween, defaultTripCover, display, fromBaseCurrency, type Cat, type CostShareMode, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, toBaseCurrency, type Prefs, type Trip, type TripTraveler, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 
 /* ---------------- Trip form ---------------- */
 type TripFormValues = Pick<Trip, 'name' | 'destination' | 'start' | 'end' | 'description' | 'budget' | 'extras' | 'color' | 'cover' | 'tagline' | 'groupTrip' | 'travelers' | 'categoryShareModes'>
 
 export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; defaults?: Prefs; onSave: (t: TripFormValues) => void | boolean | Promise<void | boolean>; onClose: () => void }) {
-  const [f, setF] = useState({ name: trip?.name ?? '', destination: trip?.destination ?? '', start: trip?.start ?? '', end: trip?.end ?? '', description: trip?.description ?? '', budget: trip?.budget ? String(trip.budget) : '', tagline: trip?.tagline ?? '', color: trip?.color ?? THEMES[0], cover: trip?.cover })
+  const [f, setF] = useState({ name: trip?.name ?? '', destination: trip?.destination ?? '', start: trip?.start ?? '', end: trip?.end ?? '', description: trip?.description ?? '', budget: trip?.budget ? fromBaseCurrency(trip.budget).toFixed(2) : '', tagline: trip?.tagline ?? '', color: trip?.color ?? THEMES[0], cover: trip?.cover })
   const [budgetTouched, setBudgetTouched] = useState(Boolean(trip))
   const [groupTrip, setGroupTrip] = useState(trip?.groupTrip ?? defaults?.tripType === 'group')
   const [travelers, setTravelers] = useState<TripTraveler[]>(() => trip?.travelers?.length
@@ -21,7 +21,7 @@ export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; def
   const [saveError, setSaveError] = useState('')
   const dayCount = f.start && f.end && f.end >= f.start ? daysBetween(f.start, f.end) : 0
   const suggestedBudget = !trip && !budgetTouched && defaults?.dailyBudget && dayCount > 0
-    ? String(Math.round(defaults.dailyBudget * dayCount * 100) / 100)
+    ? fromBaseCurrency(defaults.dailyBudget * dayCount).toFixed(2)
     : ''
   const budgetValue = suggestedBudget || f.budget
   const submit = (e: React.FormEvent) => {
@@ -39,11 +39,16 @@ export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; def
     if (trip && f.start && f.end && trip.activities.some(a => a.date < f.start || a.date > f.end)) er.end = 'Some activities fall outside this new date range. Move them first.'
     setErr(er)
     if (!Object.keys(er).length) {
+      const baseBudget = trip?.budget != null && budgetValue === fromBaseCurrency(trip.budget).toFixed(2)
+        ? trip.budget
+        : suggestedBudget && !budgetTouched && defaults?.dailyBudget != null
+          ? defaults.dailyBudget * dayCount
+          : budgetValue ? toBaseCurrency(Number(budgetValue)) : undefined
       const values: TripFormValues = {
       ...f,
       name: f.name.trim(),
       destination: f.destination.trim(),
-      budget: budgetValue ? Number(budgetValue) : undefined,
+      budget: baseBudget,
       tagline: f.tagline.trim().slice(0, 80),
       extras: extras.map(x => ({ ...x, label: x.label.trim() })),
       groupTrip,
@@ -176,7 +181,7 @@ export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; def
         </Section>
 
         <Section title="Budget">
-          <Field label="Budget limit (PHP, optional)" error={err.budget}><input className="input" inputMode="decimal" value={budgetValue} placeholder="e.g. 15000, your maximum spend" onChange={e => { setBudgetTouched(true); setF({ ...f, budget: e.target.value }) }} /></Field>
+          <Field label={`Budget limit (${display.currency}, optional)`} error={err.budget}><input className="input" inputMode="decimal" value={budgetValue} placeholder="e.g. 15000, your maximum spend" onChange={e => { setBudgetTouched(true); setF({ ...f, budget: e.target.value }) }} /></Field>
           {suggestedBudget && defaults?.dailyBudget != null && <p className="-mt-2 text-xs text-ink/55">Suggested from your {php(defaults.dailyBudget)} per day default × {dayCount} days. Type to change it.</p>}
           <div>
             <FieldLabel text="Miscellaneous spending" className="!mb-0.5" />

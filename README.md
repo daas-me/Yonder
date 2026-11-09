@@ -1,6 +1,6 @@
 # Yonder
 
-Yonder is a React + TypeScript travel planner with a Spring Boot REST API and MySQL persistence.
+Yonder is a React + TypeScript travel planner with a Spring Boot REST API and Supabase-hosted PostgreSQL persistence.
 
 ## Project layout
 
@@ -17,19 +17,20 @@ The implemented React client uses React (not Vue) and talks to the API at `/api`
 
 ## Run locally (PowerShell)
 
-1. Install and start MySQL Server using your local MySQL installation. Configure the backend run configuration with `DB_USERNAME` and `DB_PASSWORD` for a MySQL account that can create/use the `yonder` database. The default connection is `jdbc:mysql://localhost:3306/yonder`; set `DB_URL` if your MySQL server uses a different host, port, or database.
+1. Create a Supabase project, then open **Project Settings → Database → Connection string** and choose the **Session pooler** connection string. The backend connects to Supabase PostgreSQL through JDBC; it does not use a Supabase service-role key. The local defaults target the Supabase CLI database (`localhost:54322`, database/user/password `postgres`).
 
 2. Start the API from your IDE by running `AppApplication.java`, or from a terminal:
 
    ```powershell
-   $env:DB_USERNAME = "yonder"
-   $env:DB_PASSWORD = "choose-a-local-password"
+   $env:DB_URL = "jdbc:postgresql://<session-pooler-host>:5432/postgres?sslmode=require"
+   $env:DB_USERNAME = "postgres.<project-ref>"
+   $env:DB_PASSWORD = "<database-password>"
    $env:GOOGLE_PLACES_API_KEY = "your-google-places-server-key"
    Set-Location backend/app
    .\mvnw.cmd spring-boot:run
    ```
 
-   The API runs on port `8080`; Flyway creates and evolves the schema on startup. The Places key is required for Google-backed Discover listings. Set `DB_URL`, `FRONTEND_ORIGIN`, `SESSION_COOKIE_SECURE`, and `SESSION_COOKIE_SAME_SITE` when using different local or deployed values. Do not use development cookie settings in production.
+   The API runs on port `8080`; Flyway creates and evolves the app's tables in a dedicated `yonder` PostgreSQL schema on startup, separate from Supabase's `public` schema. Replace the connection placeholders with the values from Supabase; keep the database password in an environment variable or secret manager and never commit it. The Places key is required for Google-backed Discover listings. Set `FRONTEND_ORIGIN`, `SESSION_COOKIE_SECURE`, and `SESSION_COOKIE_SAME_SITE` when using different local or deployed values. Do not use development cookie settings in production.
 
    To create a fictional demo account and Baguio sample trip, start the backend with the development profile:
 
@@ -70,7 +71,7 @@ Use a separate Places key that stays on the server. Configure it as `GOOGLE_PLAC
 - `GET /api/trips`, `POST /api/trips`, `GET /api/trips/{id}`, `PUT /api/trips/{id}`, `DELETE /api/trips/{id}`
 - `PUT /api/me`, `PUT /api/me/password`, `DELETE /api/me`
 
-Session cookies are HttpOnly, writes require a CSRF token, passwords are BCrypt-hashed, and trip access is scoped to the authenticated owner. Profile, cover, journal, and activity photos are compressed to JPEG in the browser and uploaded to the authenticated API (maximum 8 MB). The backend stores files under `PHOTO_STORAGE_DIR` (default `backend/app/data/photos` when started from `backend/app`); keep this directory persistent and back it up with MySQL. Removing a photo, trip, or account removes its stored files.
+Session cookies are HttpOnly, writes require a CSRF token, passwords are BCrypt-hashed, and trip access is scoped to the authenticated owner. Profile, cover, journal, and activity photos are compressed to JPEG in the browser and uploaded to the authenticated API (maximum 8 MB). The backend stores files under `PHOTO_STORAGE_DIR` (default `backend/app/data/photos` when started from `backend/app`); this file storage remains separate from Supabase PostgreSQL and must be persisted by the deployment. Removing a photo, trip, or account removes its stored files.
 
 New accounts start with an editable, deletable Baguio sample trip. Its original illustration assets are served by the frontend from `frontend/public/sample-images`.
 
@@ -83,7 +84,7 @@ Set-Location backend/app
 .\mvnw.cmd test
 ```
 
-Backend tests use an isolated in-memory H2 database. Production/local runs use MySQL.
+Backend tests use an isolated in-memory H2 database in PostgreSQL compatibility mode. Local development defaults to the Supabase CLI PostgreSQL port; deployed runs should use the Supabase Session Pooler JDBC URL.
 
 Frontend validation:
 
@@ -93,4 +94,4 @@ npm run typecheck
 npm run build
 ```
 
-The frontend dev server can be checked at `http://localhost:8443/`. API-backed features require the Spring Boot API and MySQL steps above.
+The frontend dev server can be checked at `http://localhost:8443/`. API-backed features require the Spring Boot API and Supabase/PostgreSQL connection above.

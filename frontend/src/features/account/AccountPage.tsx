@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, assetUrl, resizeImage } from '../../services'
-import { Confirm, Field, Modal, PasswordInput, type Note, type Prefs, THEMES, type ThemePref, type Trip, type User } from '../../shared'
-import { Card } from './controls'
+import { Confirm, CURRENCIES, Field, Modal, PasswordInput, php, type Note, type Prefs, THEMES, type ThemePref, type Trip, type User } from '../../shared'
+import { Card, SelectMenu } from './controls'
 import DisplaySettings from './DisplaySettings'
 import NotificationSettings from './NotificationSettings'
 import PassportCard from './PassportCard'
@@ -33,13 +33,16 @@ type Props = {
   onPasswordChange: (current: string, next: string) => Promise<void>
   onAvatarColor: (color: string) => void
   onPrefs: (patch: Partial<Prefs>) => void
+  onEnsureCurrency: (currency: Prefs['currency']) => Promise<void>
+  currencyRateDate?: string
+  currencyError?: string
   onTheme: (theme: ThemePref) => void
   onSignOut: () => void
   onDeleteAccount: () => Promise<void>
   toast: (message: string) => void
 }
 
-export default function AccountPage({ user, trips, prefs, theme, initialTab = 'profile', onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onAvatarColor, onPrefs, onTheme, onSignOut, onDeleteAccount, toast }: Props) {
+export default function AccountPage({ user, trips, prefs, theme, initialTab = 'profile', onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onAvatarColor, onPrefs, onEnsureCurrency, currencyRateDate, currencyError, onTheme, onSignOut, onDeleteAccount, toast }: Props) {
   const [tab, setTab] = useState<AccountTab>(initialTab)
   const [profile, setProfile] = useState({ name: user.name, email: user.email, homeCity: user.homeCity })
   const [prefsDraft, setPrefsDraft] = useState(prefs)
@@ -135,7 +138,8 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
     }
   }
   const removePhoto = () => setPendingPhoto(user.photoUrl ? null : undefined)
-  const profileChanged = profile.name.trim() !== user.name || profile.email.trim().toLowerCase() !== user.email || profile.homeCity.trim() !== user.homeCity
+  const profileDetailsChanged = profile.name.trim() !== user.name || profile.email.trim().toLowerCase() !== user.email || profile.homeCity.trim() !== user.homeCity
+  const profileChanged = profileDetailsChanged || prefsDraft.currency !== prefs.currency
   const profilePhotoChanged = pendingPhoto !== undefined
   const avatarColorChanged = avatarColorDraft !== null && avatarColorDraft !== (user.avatarColor ?? '#ec6a3c')
   const settingsChanges = [
@@ -143,11 +147,12 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
     ...(prefsDraft.tripType !== prefs.tripType ? [{ label: 'Default trip type', value: prefsDraft.tripType }] : []),
     ...(prefsDraft.pax !== prefs.pax ? [{ label: 'Default group size', value: String(prefsDraft.pax) }] : []),
     ...(JSON.stringify(prefsDraft.companions) !== JSON.stringify(prefs.companions) ? [{ label: 'Companions', value: `${prefsDraft.companions.length} saved` }] : []),
-    ...(prefsDraft.dailyBudget !== prefs.dailyBudget ? [{ label: 'Daily budget', value: prefsDraft.dailyBudget ? `₱${prefsDraft.dailyBudget}` : 'Not set' }] : []),
+    ...(prefsDraft.dailyBudget !== prefs.dailyBudget ? [{ label: 'Daily budget', value: prefsDraft.dailyBudget ? php(prefsDraft.dailyBudget) : 'Not set' }] : []),
     ...(JSON.stringify(prefsDraft.splitRules) !== JSON.stringify(prefs.splitRules) ? [{ label: 'Cost-sharing defaults', value: 'Updated' }] : []),
     ...(JSON.stringify(prefsDraft.packing) !== JSON.stringify(prefs.packing) ? [{ label: 'Packing list defaults', value: `${prefsDraft.packing.length} items` }] : []),
     ...(prefsDraft.clock !== prefs.clock ? [{ label: 'Time format', value: prefsDraft.clock === '24' ? '24-hour' : '12-hour' }] : []),
     ...(prefsDraft.temp !== prefs.temp ? [{ label: 'Temperature format', value: prefsDraft.temp === 'f' ? 'Fahrenheit' : 'Celsius' }] : []),
+    ...(prefsDraft.currency !== prefs.currency ? [{ label: 'Currency', value: prefsDraft.currency }] : []),
     ...(['tripSoon', 'soonDays', 'packing', 'budget', 'budgetAt', 'logSpending', 'browser'] as const)
       .filter(key => prefsDraft.notify[key] !== prefs.notify[key])
       .map(key => ({
@@ -171,10 +176,12 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
     try {
       if (review === 'profile') {
         const nextProfile = { name: profile.name.trim(), email: profile.email.trim().toLowerCase(), homeCity: profile.homeCity.trim() }
-        await onSave(nextProfile)
+        if (prefsDraft.currency !== prefs.currency) await onEnsureCurrency(prefsDraft.currency)
+        if (profileDetailsChanged) await onSave(nextProfile)
+        if (prefsDraft.currency !== prefs.currency) onPrefs({ currency: prefsDraft.currency })
         setProfile(nextProfile)
         setReview(null)
-        setSavedMessage('Your profile details have been saved.')
+        setSavedMessage(profileDetailsChanged ? 'Your profile details have been saved.' : 'Your currency preference has been saved.')
       } else if (review === 'photo') {
         if (pendingPhoto !== undefined) {
           if (pendingPhoto) await onPhotoUpload(await (await fetch(pendingPhoto)).blob())
@@ -186,6 +193,7 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
         setReview(null)
         setSavedMessage('Your profile photo changes have been saved.')
       } else if (review === 'settings') {
+        if (prefsDraft.currency !== prefs.currency) await onEnsureCurrency(prefsDraft.currency)
         if (prefsDraft.notify.browser && !prefs.notify.browser) {
           if (!('Notification' in window)) throw new Error('This browser does not support notifications.')
           const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
@@ -272,7 +280,13 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
                 <Field label="Full name" error={errors.name}><input className="input" autoComplete="name" value={profile.name} onChange={event => setProfile({ ...profile, name: event.target.value })} /></Field>
                 <Field label="Email" error={errors.email}><input className="input" type="email" autoComplete="email" value={profile.email} onChange={event => setProfile({ ...profile, email: event.target.value })} /></Field>
                 <Field label="Home city (optional)"><input className="input" autoComplete="address-level2" value={profile.homeCity} placeholder="Quezon City" onChange={event => setProfile({ ...profile, homeCity: event.target.value })} /></Field>
-                <Field label="Currency"><input className="input bg-moss/50" value="Philippine Peso (PHP)" disabled /></Field>
+                <Field label="Currency">
+                  <SelectMenu value={prefsDraft.currency} label="Currency" options={CURRENCIES.map(({ code, name }) => ({ value: code, label: `${name} (${code})` }))} onChange={value => {
+                    const currency = CURRENCIES.find(option => option.code === value)?.code
+                    if (currency) savePrefs({ currency })
+                  }} className="w-full" />
+                  <p className="mt-1 text-xs text-ink/50">{prefsDraft.currency !== prefs.currency ? 'The exchange rate will be checked when you save changes.' : currencyError || (currencyRateDate && prefsDraft.currency !== 'PHP' ? `Converted using Frankfurter daily rates dated ${currencyRateDate}.` : prefsDraft.currency === 'PHP' ? 'Trip amounts are stored in PHP.' : 'Loading the latest exchange rate…')}</p>
+                </Field>
               </div>
               <p className="mt-2 text-xs text-ink/50">Your home city is the departure point on your boarding passes.</p>
               <div className="mt-6 flex justify-end"><button className="btn btn-primary w-full sm:w-auto" disabled={!profileChanged}>Save changes</button></div>
@@ -337,14 +351,22 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
         </div>
       )}
       {review && (
-        <Modal title="Review account changes" onClose={closeReview} wide animated>
+        <Modal
+          title="Review account changes"
+          eyebrow="ACCOUNT SETTINGS"
+          subtitle="Take one last look before your account updates are saved."
+          icon={<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 3 4.5 6v5.5c0 4.5 3.2 7.7 7.5 9.5 4.3-1.8 7.5-5 7.5-9.5V6L12 3Z" /><path d="m9 12 2 2 4-4" /></svg>}
+          onClose={closeReview}
+          wide
+          animated
+        >
           <div className="trip-confirm-content space-y-5">
             <div>
               <p className="font-display text-xl font-semibold">
                 {review === 'profile' ? 'Save profile changes?' : review === 'photo' ? 'Save profile photo changes?' : review === 'password' ? 'Update your password?' : 'Save these settings?'}
               </p>
               <p className="mt-1 text-sm text-ink/60">
-                {review === 'password' ? 'Confirm to replace your current password. Your password values are never displayed here.' : `Review your ${review === 'photo' ? 'photo and initials colour' : review === 'profile' ? 'profile details' : review === 'settings' ? 'settings' : ''} before they are saved.`}
+                {review === 'password' ? 'Confirm to replace your current password. Your password values are never displayed here.' : `Review your ${review === 'photo' ? 'photo and initials colour' : review === 'profile' ? 'profile and currency details' : review === 'settings' ? 'settings' : ''} before they are saved.`}
               </p>
             </div>
             <dl className="divide-y divide-line rounded-xl bg-sand/60 px-4">
@@ -353,6 +375,7 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
                   {profile.name.trim() !== user.name && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Name</dt><dd className="truncate text-right font-medium">{profile.name.trim()}</dd></div>}
                   {profile.email.trim().toLowerCase() !== user.email && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Email</dt><dd className="truncate text-right font-medium">{profile.email.trim().toLowerCase()}</dd></div>}
                   {profile.homeCity.trim() !== user.homeCity && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Home city</dt><dd className="truncate text-right font-medium">{profile.homeCity.trim() || 'Not set'}</dd></div>}
+                  {prefsDraft.currency !== prefs.currency && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Currency</dt><dd className="text-right font-medium">{prefsDraft.currency}</dd></div>}
                 </>
               )}
               {review === 'photo' && (
