@@ -11,6 +11,26 @@
       "description": "Local directory used to persist uploaded photos."
     },
     {
+      "name": "yonder.storage.provider",
+      "type": "java.lang.String",
+      "description": "Photo storage provider: local or supabase."
+    },
+    {
+      "name": "yonder.storage.supabase.url",
+      "type": "java.lang.String",
+      "description": "Supabase project URL used for private photo storage."
+    },
+    {
+      "name": "yonder.storage.supabase.service-role-key",
+      "type": "java.lang.String",
+      "description": "Server-only Supabase service role key."
+    },
+    {
+      "name": "yonder.storage.supabase.bucket",
+      "type": "java.lang.String",
+      "description": "Private Supabase Storage bucket for photos."
+    },
+    {
       "name": "yonder.demo-seed.enabled",
       "type": "java.lang.Boolean",
       "description": "Enables fictional demo account and trip seeding when explicitly set."
