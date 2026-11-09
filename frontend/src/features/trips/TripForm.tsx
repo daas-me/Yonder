@@ -1,23 +1,29 @@
 import { useState } from 'react'
 import { assetUrl, resizeImage } from '../../services'
-import { DEFAULT_CATEGORY_SHARE_MODES, defaultTripCover, type Cat, type CostShareMode, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Trip, type TripTraveler, uid } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, daysBetween, defaultTripCover, type Cat, type CostShareMode, type Extra, Field, FieldLabel, Modal, Section, php, planned, THEMES, type Prefs, type Trip, type TripTraveler, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
 
 /* ---------------- Trip form ---------------- */
 type TripFormValues = Pick<Trip, 'name' | 'destination' | 'start' | 'end' | 'description' | 'budget' | 'extras' | 'color' | 'cover' | 'tagline' | 'groupTrip' | 'travelers' | 'categoryShareModes'>
 
-export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: TripFormValues) => void | boolean | Promise<void | boolean>; onClose: () => void }) {
+export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; defaults?: Prefs; onSave: (t: TripFormValues) => void | boolean | Promise<void | boolean>; onClose: () => void }) {
   const [f, setF] = useState({ name: trip?.name ?? '', destination: trip?.destination ?? '', start: trip?.start ?? '', end: trip?.end ?? '', description: trip?.description ?? '', budget: trip?.budget ? String(trip.budget) : '', tagline: trip?.tagline ?? '', color: trip?.color ?? THEMES[0], cover: trip?.cover })
-  const [groupTrip, setGroupTrip] = useState(trip?.groupTrip ?? false)
+  const [budgetTouched, setBudgetTouched] = useState(Boolean(trip))
+  const [groupTrip, setGroupTrip] = useState(trip?.groupTrip ?? defaults?.tripType === 'group')
   const [travelers, setTravelers] = useState<TripTraveler[]>(() => trip?.travelers?.length
     ? trip.travelers
-    : [{ id: uid(), name: '' }, { id: uid(), name: '' }])
-  const [categoryShareModes, setCategoryShareModes] = useState<Partial<Record<Cat, CostShareMode>>>(trip?.categoryShareModes ?? {})
+    : Array.from({ length: Math.max(2, (defaults?.companions.length ?? 0) + 1, Math.min(99, defaults?.pax ?? 2)) }, (_, index) => ({ id: uid(), name: index === 0 ? '' : defaults?.companions[index - 1] ?? '' })))
+  const [categoryShareModes, setCategoryShareModes] = useState<Partial<Record<Cat, CostShareMode>>>(trip?.categoryShareModes ?? defaults?.splitRules ?? {})
   const [extras, setExtras] = useState<Extra[]>(trip?.extras ?? [])
   const [err, setErr] = useState<Record<string, string>>({})
   const [pendingChanges, setPendingChanges] = useState<TripFormValues | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const dayCount = f.start && f.end && f.end >= f.start ? daysBetween(f.start, f.end) : 0
+  const suggestedBudget = !trip && !budgetTouched && defaults?.dailyBudget && dayCount > 0
+    ? String(Math.round(defaults.dailyBudget * dayCount * 100) / 100)
+    : ''
+  const budgetValue = suggestedBudget || f.budget
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const er: Record<string, string> = {}
@@ -27,7 +33,7 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: T
     if (!f.end) er.end = 'End date is required.'
     if (f.start && f.end && f.end < f.start) er.end = 'End date must be on or after start date.'
     if (f.description.length > 1000) er.description = 'Max 1,000 characters.'
-    if (f.budget && !/^\d+(\.\d{1,2})?$/.test(f.budget)) er.budget = 'Enter a nonnegative amount with up to 2 decimals.'
+    if (budgetValue && !/^\d+(\.\d{1,2})?$/.test(budgetValue)) er.budget = 'Enter a nonnegative amount with up to 2 decimals.'
     if (groupTrip && (travelers.length < 2 || travelers.length > 99)) er.travelers = 'A group trip needs 2 to 99 travelers, including you.'
     if (extras.some(x => !x.label.trim())) er.extras = 'Give every misc expense a name, or remove it.'
     if (trip && f.start && f.end && trip.activities.some(a => a.date < f.start || a.date > f.end)) er.end = 'Some activities fall outside this new date range. Move them first.'
@@ -37,7 +43,7 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: T
       ...f,
       name: f.name.trim(),
       destination: f.destination.trim(),
-      budget: f.budget ? Number(f.budget) : undefined,
+      budget: budgetValue ? Number(budgetValue) : undefined,
       tagline: f.tagline.trim().slice(0, 80),
       extras: extras.map(x => ({ ...x, label: x.label.trim() })),
       groupTrip,
@@ -62,8 +68,17 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: T
       setSaving(false)
     }
   }
+  const modalTitle = pendingChanges ? 'Confirm trip changes' : trip ? 'Edit trip' : 'Design a new trip'
   return (
-    <Modal title={pendingChanges ? 'Confirm trip changes' : trip ? 'Edit trip' : 'Design a new trip'} onClose={onClose} wide animated={Boolean(trip)}>
+    <Modal
+      title={modalTitle}
+      eyebrow={pendingChanges ? 'READY FOR REVIEW' : trip ? 'YOUR JOURNEY' : 'PLAN A JOURNEY'}
+      subtitle={pendingChanges ? 'Take one last look before these updates are saved.' : trip ? 'Update the details, plans, and budget for this trip.' : 'Gather the details now. You can shape the itinerary as you go.'}
+      icon={<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m21 3-6.5 18-3.5-8-8-3.5L21 3Z" /><path d="M11 13 21 3" /></svg>}
+      onClose={onClose}
+      wide
+      animated
+    >
       {pendingChanges && trip ? (
         <div key="confirm-trip-changes" className="trip-confirm-content space-y-5">
           <div>
@@ -161,7 +176,8 @@ export function TripForm({ trip, onSave, onClose }: { trip?: Trip; onSave: (t: T
         </Section>
 
         <Section title="Budget">
-          <Field label="Budget limit (PHP, optional)" error={err.budget}><input className="input" inputMode="decimal" value={f.budget} placeholder="e.g. 15000, your maximum spend" onChange={e => setF({ ...f, budget: e.target.value })} /></Field>
+          <Field label="Budget limit (PHP, optional)" error={err.budget}><input className="input" inputMode="decimal" value={budgetValue} placeholder="e.g. 15000, your maximum spend" onChange={e => { setBudgetTouched(true); setF({ ...f, budget: e.target.value }) }} /></Field>
+          {suggestedBudget && defaults?.dailyBudget != null && <p className="-mt-2 text-xs text-ink/55">Suggested from your {php(defaults.dailyBudget)} per day default × {dayCount} days. Type to change it.</p>}
           <div>
             <FieldLabel text="Miscellaneous spending" className="!mb-0.5" />
             <p className="mb-2 text-xs text-ink/55">Costs that aren't a scheduled activity, like insurance, tips, a SIM card or an emergency fund. Fill in Actual during or after the trip.</p>

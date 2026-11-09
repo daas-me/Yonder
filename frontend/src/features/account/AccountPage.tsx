@@ -1,158 +1,399 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError, assetUrl, resizeImage } from '../../services'
-import { Confirm, Field, PasswordInput, PlusIcon, type Trip, type User } from '../../shared'
+import { Confirm, Field, Modal, PasswordInput, type Note, type Prefs, THEMES, type ThemePref, type Trip, type User } from '../../shared'
+import { Card } from './controls'
+import DisplaySettings from './DisplaySettings'
+import NotificationSettings from './NotificationSettings'
+import PassportCard from './PassportCard'
+import TripDefaults from './TripDefaults'
 
-/* ---------------- Account ---------------- */
-export default function AccountPage({ user, trips, onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onDeleteAccount, toast }: { user: User; trips: Trip[]; onSave: (profile: Pick<User, 'name' | 'email' | 'homeCity'>) => Promise<void>; onPhotoUpload: (photo: Blob) => Promise<void>; onPhotoRemove: () => Promise<void>; onPasswordChange: (current: string, next: string) => Promise<void>; onDeleteAccount: () => Promise<void>; toast: (m: string) => void }) {
-  const [p, setP] = useState({ name: user.name, email: user.email, homeCity: user.homeCity })
-  const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
-  const [confirmPasswordChange, setConfirmPasswordChange] = useState(false)
-  const [err, setErr] = useState<Record<string, string>>({})
-  const [confirm, setConfirm] = useState(false)
-  const [deleteErr, setDeleteErr] = useState('')
-  const [photoBusy, setPhotoBusy] = useState(false)
-  const [photoError, setPhotoError] = useState('')
-  const uploadPhoto = async (file?: File) => {
-    if (!file) return
-    setPhotoBusy(true)
-    setPhotoError('')
-    try {
-      const compressed = await resizeImage(file, 640)
-      await onPhotoUpload(await (await fetch(compressed)).blob())
-      toast('Profile photo updated')
-    } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : 'Could not upload your profile photo.')
-    } finally {
-      setPhotoBusy(false)
+export type AccountTab = 'profile' | 'defaults' | 'notifications' | 'display' | 'security'
+const TABS: [AccountTab, string][] = [['profile', 'Profile'], ['defaults', 'Trip defaults'], ['notifications', 'Notifications'], ['display', 'Display'], ['security', 'Security']]
+const sectionIcon = (tab: AccountTab) => {
+  const icon = {
+    profile: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
+    defaults: <><rect x="4" y="7" width="16" height="13" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" /></>,
+    notifications: <><path d="M6 10a6 6 0 0 1 12 0c0 4 1.4 5.6 2 6.5H4c.6-.9 2-2.5 2-6.5Z" /><path d="M10 19.5a2 2 0 0 0 4 0" /></>,
+    display: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></>,
+    security: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
+  }[tab]
+  return <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+}
+
+type Props = {
+  user: User
+  trips: Trip[]
+  prefs: Prefs
+  theme: ThemePref
+  notes: Note[]
+  initialTab?: AccountTab
+  onSave: (profile: Pick<User, 'name' | 'email' | 'homeCity'>) => Promise<void>
+  onPhotoUpload: (photo: Blob) => Promise<void>
+  onPhotoRemove: () => Promise<void>
+  onPasswordChange: (current: string, next: string) => Promise<void>
+  onAvatarColor: (color: string) => void
+  onPrefs: (patch: Partial<Prefs>) => void
+  onTheme: (theme: ThemePref) => void
+  onSignOut: () => void
+  onDeleteAccount: () => Promise<void>
+  toast: (message: string) => void
+}
+
+export default function AccountPage({ user, trips, prefs, theme, initialTab = 'profile', onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onAvatarColor, onPrefs, onTheme, onSignOut, onDeleteAccount, toast }: Props) {
+  const [tab, setTab] = useState<AccountTab>(initialTab)
+  const [profile, setProfile] = useState({ name: user.name, email: user.email, homeCity: user.homeCity })
+  const [prefsDraft, setPrefsDraft] = useState(prefs)
+  const [themeDraft, setThemeDraft] = useState(theme)
+  const [pendingPhoto, setPendingPhoto] = useState<string | null | undefined>(undefined)
+  const [avatarColorDraft, setAvatarColorDraft] = useState<string | null>(null)
+  const [password, setPassword] = useState({ current: '', next: '', confirm: '' })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [review, setReview] = useState<'profile' | 'photo' | 'settings' | 'password' | null>(null)
+  const [reviewError, setReviewError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [savedMessage, setSavedMessage] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false)
+  const sectionMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => setTab(initialTab), [initialTab])
+  useEffect(() => setPrefsDraft(prefs), [prefs])
+  useEffect(() => setThemeDraft(theme), [theme])
+  useEffect(() => {
+    if (!sectionMenuOpen) return
+    const closeOutside = (event: MouseEvent) => {
+      if (!sectionMenuRef.current?.contains(event.target as Node)) setSectionMenuOpen(false)
     }
-  }
-  const removePhoto = async () => {
-    setPhotoBusy(true)
-    setPhotoError('')
-    try {
-      await onPhotoRemove()
-      toast('Profile photo removed')
-    } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : 'Could not remove your profile photo.')
-    } finally {
-      setPhotoBusy(false)
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSectionMenuOpen(false)
     }
-  }
-  const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const er: Record<string, string> = {}
-    if (!p.name.trim()) er.name = 'Name is required.'
-    if (!/^\S+@\S+\.\S+$/.test(p.email)) er.email = 'Enter a valid email.'
-    setErr(er)
-    if (Object.keys(er).length) return
-    try {
-      await onSave({ name: p.name.trim(), email: p.email.trim().toLowerCase(), homeCity: p.homeCity.trim() })
-      toast('Profile saved')
-    } catch (error) {
-      setErr(error instanceof ApiError ? error.fieldErrors : { email: 'Could not save your profile.' })
+    document.addEventListener('mousedown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
     }
+  }, [sectionMenuOpen])
+
+  const savePrefs = (patch: Partial<Prefs>) => {
+    setPrefsDraft(current => ({
+      ...current,
+      ...patch,
+      splitRules: patch.splitRules ?? current.splitRules,
+      packing: patch.packing ?? current.packing,
+      companions: patch.companions ?? current.companions,
+      notify: patch.notify ?? current.notify,
+    }))
   }
-  const savePw = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const er: Record<string, string> = {}
-    if (pw.next.length < 6) er.next = 'At least 6 characters.'
-    if (pw.next !== pw.confirm) er.confirm = 'Passwords do not match.'
-    setErr(er)
-    if (Object.keys(er).length) return
-    setConfirmPasswordChange(true)
+  const saveProfile = (event: React.FormEvent) => {
+    event.preventDefault()
+    const nextErrors: Record<string, string> = {}
+    if (!profile.name.trim()) nextErrors.name = 'Name is required.'
+    if (!/^\S+@\S+\.\S+$/.test(profile.email.trim())) nextErrors.email = 'Enter a valid email.'
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
+    setReviewError('')
+    setReview('profile')
+  }
+  const validatePassword = (event: React.FormEvent) => {
+    event.preventDefault()
+    const nextErrors: Record<string, string> = {}
+    if (password.next.length < 6) nextErrors.next = 'At least 6 characters.'
+    if (password.next !== password.confirm) nextErrors.confirm = 'Passwords do not match.'
+    setErrors(nextErrors)
+    if (!Object.keys(nextErrors).length) {
+      setReviewError('')
+      setReview('password')
+    }
   }
   const updatePassword = async () => {
     try {
-      await onPasswordChange(pw.current, pw.next)
-      setPw({ current: '', next: '', confirm: '' })
-      setConfirmPasswordChange(false)
-      toast('Password updated')
+      await onPasswordChange(password.current, password.next)
+      setPassword({ current: '', next: '', confirm: '' })
+      setReview(null)
+      setSavedMessage('Your password has been updated.')
     } catch (error) {
-      setErr(error instanceof ApiError ? { current: error.message } : { current: 'Could not update your password.' })
-      setConfirmPasswordChange(false)
+      setErrors(error instanceof ApiError ? { current: error.message } : { current: 'Could not update your password.' })
+      setReviewError(error instanceof Error ? error.message : 'Could not update your password.')
     }
   }
   const deleteAccount = async () => {
     try {
       await onDeleteAccount()
     } catch (error) {
-      setDeleteErr(error instanceof Error ? error.message : 'Could not delete your account.')
-      setConfirm(false)
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete your account.')
+      setConfirmDelete(false)
     }
   }
-  const initials = user.name.trim().split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase()
-  const card = 'rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-7'
+  const uploadPhoto = async (file?: File) => {
+    if (!file) return
+    try {
+      setPendingPhoto(await resizeImage(file, 320))
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not upload your profile photo.')
+    }
+  }
+  const removePhoto = () => setPendingPhoto(user.photoUrl ? null : undefined)
+  const profileChanged = profile.name.trim() !== user.name || profile.email.trim().toLowerCase() !== user.email || profile.homeCity.trim() !== user.homeCity
+  const profilePhotoChanged = pendingPhoto !== undefined
+  const avatarColorChanged = avatarColorDraft !== null && avatarColorDraft !== (user.avatarColor ?? '#ec6a3c')
+  const settingsChanges = [
+    ...(themeDraft !== theme ? [{ label: 'Theme', value: themeDraft }] : []),
+    ...(prefsDraft.tripType !== prefs.tripType ? [{ label: 'Default trip type', value: prefsDraft.tripType }] : []),
+    ...(prefsDraft.pax !== prefs.pax ? [{ label: 'Default group size', value: String(prefsDraft.pax) }] : []),
+    ...(JSON.stringify(prefsDraft.companions) !== JSON.stringify(prefs.companions) ? [{ label: 'Companions', value: `${prefsDraft.companions.length} saved` }] : []),
+    ...(prefsDraft.dailyBudget !== prefs.dailyBudget ? [{ label: 'Daily budget', value: prefsDraft.dailyBudget ? `₱${prefsDraft.dailyBudget}` : 'Not set' }] : []),
+    ...(JSON.stringify(prefsDraft.splitRules) !== JSON.stringify(prefs.splitRules) ? [{ label: 'Cost-sharing defaults', value: 'Updated' }] : []),
+    ...(JSON.stringify(prefsDraft.packing) !== JSON.stringify(prefs.packing) ? [{ label: 'Packing list defaults', value: `${prefsDraft.packing.length} items` }] : []),
+    ...(prefsDraft.clock !== prefs.clock ? [{ label: 'Time format', value: prefsDraft.clock === '24' ? '24-hour' : '12-hour' }] : []),
+    ...(prefsDraft.temp !== prefs.temp ? [{ label: 'Temperature format', value: prefsDraft.temp === 'f' ? 'Fahrenheit' : 'Celsius' }] : []),
+    ...(['tripSoon', 'soonDays', 'packing', 'budget', 'budgetAt', 'logSpending', 'browser'] as const)
+      .filter(key => prefsDraft.notify[key] !== prefs.notify[key])
+      .map(key => ({
+        label: `Notification · ${({
+          tripSoon: 'trip start reminders', soonDays: 'trip reminder timing', packing: 'packing reminders',
+          budget: 'budget reminders', budgetAt: 'budget reminder threshold', logSpending: 'spending reminders', browser: 'browser notifications',
+        })[key]}`,
+        value: String(prefsDraft.notify[key]),
+      })),
+  ]
+  const hasSettingsChanges = settingsChanges.length > 0
+  const previewUser: User = {
+    ...user,
+    ...profile,
+    photoUrl: pendingPhoto === undefined ? user.photoUrl : pendingPhoto ?? undefined,
+    avatarColor: avatarColorDraft ?? user.avatarColor,
+  }
+  const reviewChanges = async () => {
+    setSaving(true)
+    setReviewError('')
+    try {
+      if (review === 'profile') {
+        const nextProfile = { name: profile.name.trim(), email: profile.email.trim().toLowerCase(), homeCity: profile.homeCity.trim() }
+        await onSave(nextProfile)
+        setProfile(nextProfile)
+        setReview(null)
+        setSavedMessage('Your profile details have been saved.')
+      } else if (review === 'photo') {
+        if (pendingPhoto !== undefined) {
+          if (pendingPhoto) await onPhotoUpload(await (await fetch(pendingPhoto)).blob())
+          else await onPhotoRemove()
+          setPendingPhoto(undefined)
+        }
+        if (avatarColorChanged && avatarColorDraft) onAvatarColor(avatarColorDraft)
+        setAvatarColorDraft(null)
+        setReview(null)
+        setSavedMessage('Your profile photo changes have been saved.')
+      } else if (review === 'settings') {
+        if (prefsDraft.notify.browser && !prefs.notify.browser) {
+          if (!('Notification' in window)) throw new Error('This browser does not support notifications.')
+          const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+          if (permission !== 'granted') throw new Error(permission === 'denied' ? 'Notifications are blocked for this site.' : 'Allow notifications to apply this setting.')
+        }
+        onPrefs(prefsDraft)
+        onTheme(themeDraft)
+        setReview(null)
+        setSavedMessage('Your account settings have been saved.')
+      } else if (review === 'password') {
+        await updatePassword()
+      }
+    } catch (error) {
+      const fieldErrors = error instanceof ApiError ? Object.values(error.fieldErrors) : []
+      setReviewError(fieldErrors.length ? fieldErrors.join(' ') : error instanceof Error ? error.message : 'Could not apply these changes.')
+    } finally {
+      setSaving(false)
+    }
+  }
+  const closeReview = () => {
+    if (saving) return
+    setReview(null)
+    setReviewError('')
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-5 sm:space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="mono text-[10px] font-medium uppercase tracking-[.2em] text-pine">Your Yonder profile</p><h1 className="mt-1 font-display text-4xl font-semibold sm:text-5xl">Account</h1></div>
-        <p className="pb-1 text-sm text-ink/55">Manage your details, photo, and sign-in security.</p>
+      <div>
+        <h1 className="font-display text-4xl font-semibold sm:text-5xl">Account</h1>
+        <p className="mt-1 text-sm text-ink/55">Your profile, trip defaults, reminders and how Yonder looks.</p>
       </div>
-      <div className="topo flex flex-wrap items-center gap-4 rounded-2xl bg-pine p-5 text-white sm:gap-5 sm:p-6">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 font-display text-2xl font-semibold text-white ring-2 ring-white/25 sm:h-[4.5rem] sm:w-[4.5rem]">
-          {user.photoUrl ? <img src={assetUrl(user.photoUrl)} alt={`${user.name}'s profile`} className="h-full w-full object-cover" /> : initials}
+      <PassportCard user={previewUser} trips={trips} onAvatar={setPendingPhoto} />
+
+      <div className="rounded-xl bg-ink/5 p-1">
+        <div ref={sectionMenuRef} className="relative sm:hidden">
+          <button
+            type="button"
+            aria-label="Choose account section"
+            aria-haspopup="listbox"
+            aria-expanded={sectionMenuOpen}
+            aria-controls="account-section-options"
+            onClick={() => setSectionMenuOpen(open => !open)}
+            className="flex h-11 w-full items-center gap-3 rounded-xl border border-line2 bg-[#f7f8f6] px-3 text-left text-sm font-semibold text-ink shadow-sm transition hover:border-pine/35 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine dark:bg-[#18211f] dark:hover:bg-[#202c29]"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center text-pine" aria-hidden="true">{sectionIcon(tab)}</span>
+            <span className="min-w-0 flex-1 truncate">{TABS.find(([key]) => key === tab)?.[1]}</span>
+            <svg aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink/45 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 10 5 5 5-5" /></svg>
+          </button>
+          {sectionMenuOpen && (
+            <div id="account-section-options" role="listbox" aria-label="Account sections" className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-line2 bg-[#f7f8f6] p-1.5 shadow-lg dark:bg-[#18211f]">
+              {TABS.map(([key, label]) => {
+                const active = key === tab
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => { setTab(key); setErrors({}); setSectionMenuOpen(false) }}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm transition ${active ? 'bg-pine/10 font-semibold text-pine' : 'text-ink/70 hover:bg-ink/5 hover:text-ink'}`}
+                  >
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center ${active ? 'text-pine' : 'text-ink/50'}`}>{sectionIcon(key)}</span>
+                    <span className="flex-1">{label}</span>
+                    {active && <svg aria-hidden="true" className="h-4 w-4 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="break-words font-display text-xl sm:text-2xl">{user.name}</div>
-          <div className="mt-0.5 break-all text-sm text-white/75">{user.email}</div>
-          <div className="mt-1 text-xs text-white/60">Traveler since {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
-        </div>
-        <div className="flex min-w-20 items-center gap-2 rounded-xl bg-white/10 px-3 py-2 sm:min-w-24 sm:flex-col sm:gap-0 sm:text-right"><div className="font-display text-2xl leading-none sm:text-3xl">{trips.length}</div><div className="text-xs text-white/65">trips planned</div></div>
+        <nav className="hidden gap-1 overflow-x-auto sm:flex" aria-label="Account sections">
+          {TABS.map(([key, label]) => (
+            <button type="button" key={key} onClick={() => { setTab(key); setErrors({}) }} aria-current={tab === key ? 'page' : undefined}
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm transition ${tab === key ? 'bg-card font-semibold text-ink shadow-sm' : 'text-ink/55 hover:text-ink'}`}>{label}</button>
+          ))}
+        </nav>
       </div>
-      <section className={card}>
-        <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-moss font-display text-2xl font-semibold text-pine ring-1 ring-line2 sm:h-20 sm:w-20">
-            {user.photoUrl ? <img src={assetUrl(user.photoUrl)} alt={`${user.name}'s profile`} className="h-full w-full object-cover" /> : initials}
+
+      {tab === 'profile' && (
+        <div className="space-y-5 sm:space-y-6">
+          <form onSubmit={event => { void saveProfile(event) }}>
+            <Card title="Profile" hint="How you appear in Yonder.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Full name" error={errors.name}><input className="input" autoComplete="name" value={profile.name} onChange={event => setProfile({ ...profile, name: event.target.value })} /></Field>
+                <Field label="Email" error={errors.email}><input className="input" type="email" autoComplete="email" value={profile.email} onChange={event => setProfile({ ...profile, email: event.target.value })} /></Field>
+                <Field label="Home city (optional)"><input className="input" autoComplete="address-level2" value={profile.homeCity} placeholder="Quezon City" onChange={event => setProfile({ ...profile, homeCity: event.target.value })} /></Field>
+                <Field label="Currency"><input className="input bg-moss/50" value="Philippine Peso (PHP)" disabled /></Field>
+              </div>
+              <p className="mt-2 text-xs text-ink/50">Your home city is the departure point on your boarding passes.</p>
+              <div className="mt-6 flex justify-end"><button className="btn btn-primary w-full sm:w-auto" disabled={!profileChanged}>Save changes</button></div>
+            </Card>
+          </form>
+
+          <Card title="Profile photo" hint="Shown on your passport and in the sidebar. Changes apply after review.">
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full font-display text-xl font-semibold text-white" style={{ backgroundColor: previewUser.avatarColor ?? '#ec6a3c' }}>
+                {previewUser.photoUrl ? <img src={assetUrl(previewUser.photoUrl)} alt="" className="h-full w-full object-cover" /> : previewUser.name.trim().split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn btn-ghost cursor-pointer px-3 py-1.5 text-sm text-pine ring-1 ring-line">{previewUser.photoUrl ? 'Change photo' : 'Upload photo'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => { void uploadPhoto(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} />
+                  </label>
+                  {previewUser.photoUrl && <button type="button" className="btn btn-danger px-3 py-1.5 text-sm ring-1 ring-line" onClick={removePhoto}>Remove photo</button>}
+                </div>
+                {!previewUser.photoUrl && <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-xs text-ink/55">Initials colour</span>
+                  {[...new Set(['#ec6a3c', ...THEMES])].map(color => (
+                    <button type="button" key={color} aria-label={`Initials colour ${color}`} aria-pressed={(previewUser.avatarColor ?? '#ec6a3c') === color}
+                      onClick={() => setAvatarColorDraft(color)} className={`h-6 w-6 rounded-full ring-offset-2 ring-offset-sand ${(previewUser.avatarColor ?? '#ec6a3c') === color ? 'ring-2 ring-ink' : ''}`} style={{ background: color }} />
+                  ))}
+                </div>}
+                {(profilePhotoChanged || avatarColorChanged) && <button type="button" className="btn btn-primary px-3 py-1.5 text-sm" onClick={() => { setReviewError(''); setReview('photo') }}>Save changes</button>}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'defaults' && <TripDefaults prefs={prefsDraft} onPrefs={savePrefs} />}
+      {tab === 'display' && <DisplaySettings prefs={prefsDraft} theme={themeDraft} onTheme={setThemeDraft} onPrefs={savePrefs} />}
+      {tab === 'notifications' && <NotificationSettings prefs={prefsDraft} onPrefs={savePrefs} />}
+      {['defaults', 'display', 'notifications'].includes(tab) && (
+        <div className="flex justify-end">
+          <button type="button" className="btn btn-primary w-full sm:w-auto" disabled={!hasSettingsChanges} onClick={() => { setReviewError(''); setReview('settings') }}>Save changes</button>
+        </div>
+      )}
+
+      {tab === 'security' && (
+        <div className="space-y-5 sm:space-y-6">
+          <form onSubmit={event => { void validatePassword(event) }}>
+            <Card title="Password" hint="Change your sign-in password.">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field label="Current" error={errors.current}><PasswordInput value={password.current} onChange={event => setPassword({ ...password, current: event.target.value })} placeholder="Enter your current password" autoComplete="current-password" /></Field>
+                <Field label="New" error={errors.next}><PasswordInput value={password.next} onChange={event => setPassword({ ...password, next: event.target.value })} placeholder="At least 6 characters" autoComplete="new-password" /></Field>
+                <Field label="Confirm" error={errors.confirm}><PasswordInput value={password.confirm} onChange={event => setPassword({ ...password, confirm: event.target.value })} placeholder="Re-enter your new password" autoComplete="new-password" /></Field>
+              </div>
+              <div className="mt-6 flex justify-end"><button className="btn btn-primary w-full sm:w-auto">Update password</button></div>
+            </Card>
+          </form>
+          <Card title="Session" hint={`Signed in as ${user.email} on this browser.`}>
+            <button type="button" className="btn btn-ghost ring-1 ring-line" onClick={onSignOut}>Sign out</button>
+          </Card>
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-card p-5 ring-1 ring-clay/30 sm:p-7">
+            <div><h2 className="font-display text-xl font-semibold text-clay">Delete account</h2><p className="text-sm text-ink/60">Removes your account, trips and journal photos permanently.</p></div>
+            {deleteError && <p role="alert" className="w-full text-sm text-clay">{deleteError}</p>}
+            <button type="button" className="btn w-full border border-clay text-clay hover:bg-clay hover:text-white sm:w-auto" onClick={() => { setDeleteError(''); setConfirmDelete(true) }}>Delete account</button>
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-display text-xl font-semibold sm:text-2xl">Profile photo</h2>
-            <p className="mt-1 text-sm text-ink/55">Personalize your account. Images are resized before upload.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <label className={`btn btn-primary inline-flex items-center justify-center gap-2 ${photoBusy ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
-                {!photoBusy && !user.photoUrl && <PlusIcon className="h-4 w-4" />}
-                {photoBusy ? 'Saving…' : user.photoUrl ? 'Change photo' : 'Upload photo'}
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={photoBusy}
-                  onChange={event => { void uploadPhoto(event.target.files?.[0]); event.currentTarget.value = '' }} />
-              </label>
-              {user.photoUrl && <button type="button" className="btn btn-ghost" disabled={photoBusy} onClick={() => void removePhoto()}>Remove photo</button>}
+        </div>
+      )}
+      {review && (
+        <Modal title="Review account changes" onClose={closeReview} wide animated>
+          <div className="trip-confirm-content space-y-5">
+            <div>
+              <p className="font-display text-xl font-semibold">
+                {review === 'profile' ? 'Save profile changes?' : review === 'photo' ? 'Save profile photo changes?' : review === 'password' ? 'Update your password?' : 'Save these settings?'}
+              </p>
+              <p className="mt-1 text-sm text-ink/60">
+                {review === 'password' ? 'Confirm to replace your current password. Your password values are never displayed here.' : `Review your ${review === 'photo' ? 'photo and initials colour' : review === 'profile' ? 'profile details' : review === 'settings' ? 'settings' : ''} before they are saved.`}
+              </p>
+            </div>
+            <dl className="divide-y divide-line rounded-xl bg-sand/60 px-4">
+              {review === 'profile' && (
+                <>
+                  {profile.name.trim() !== user.name && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Name</dt><dd className="truncate text-right font-medium">{profile.name.trim()}</dd></div>}
+                  {profile.email.trim().toLowerCase() !== user.email && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Email</dt><dd className="truncate text-right font-medium">{profile.email.trim().toLowerCase()}</dd></div>}
+                  {profile.homeCity.trim() !== user.homeCity && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Home city</dt><dd className="truncate text-right font-medium">{profile.homeCity.trim() || 'Not set'}</dd></div>}
+                </>
+              )}
+              {review === 'photo' && (
+                <>
+                  {profilePhotoChanged && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Profile photo</dt><dd className="text-right font-medium">{pendingPhoto ? 'New photo' : 'Remove photo'}</dd></div>}
+                  {avatarColorChanged && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Initials colour</dt><dd className="flex items-center gap-2 text-right font-medium"><span className="h-4 w-4 rounded-full" style={{ backgroundColor: avatarColorDraft ?? undefined }} />Updated</dd></div>}
+                </>
+              )}
+              {review === 'settings' && settingsChanges.map(change => <div key={change.label} className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">{change.label}</dt><dd className="truncate text-right font-medium">{change.value}</dd></div>)}
+              {review === 'password' && <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-ink/55">Password</dt><dd className="text-right font-medium">Will be changed</dd></div>}
+            </dl>
+            {reviewError && <p role="alert" className="rounded-lg bg-clay/10 px-3 py-2 text-sm text-clay">{reviewError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-ghost" disabled={saving} onClick={closeReview}>Back to editing</button>
+              <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void reviewChanges()}>{saving ? 'Saving…' : review === 'password' ? 'Confirm password change' : 'Confirm changes'}</button>
             </div>
           </div>
-        </div>
-        {photoError && <p role="alert" className="mt-3 text-sm text-clay">{photoError}</p>}
-      </section>
-      <form onSubmit={saveProfile} className={card}>
-        <div className="mb-5"><h2 className="font-display text-xl font-semibold sm:text-2xl">Personal details</h2><p className="mt-1 text-sm text-ink/55">Update how you appear and where your trips begin.</p></div>
-        <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
-          <Field label="Full name" error={err.name}><input className="input" autoComplete="name" value={p.name} onChange={e => setP({ ...p, name: e.target.value })} /></Field>
-          <Field label="Email" error={err.email}><input className="input" type="email" autoComplete="email" value={p.email} onChange={e => setP({ ...p, email: e.target.value })} /></Field>
-          <Field label="Home city"><input className="input" autoComplete="address-level2" value={p.homeCity} placeholder="Quezon City" onChange={e => setP({ ...p, homeCity: e.target.value })} /></Field>
-          <div><span className="mb-1.5 block text-[13px] font-medium text-ink/80">Currency</span><div className="flex min-h-[42px] items-center gap-2 rounded-[10px] border border-line2 bg-moss/40 px-3.5 text-sm text-ink/70"><span aria-hidden="true" className="font-semibold text-pine">₱</span>Philippine Peso <span className="ml-auto text-xs text-ink/45">PHP</span></div></div>
-        </div>
-        <div className="mt-6 flex justify-end"><button className="btn btn-primary w-full sm:w-auto">Save profile</button></div>
-      </form>
-      <form onSubmit={savePw} className={card}>
-        <div className="mb-5"><h2 className="font-display text-xl font-semibold sm:text-2xl">Password & security</h2><p className="mt-1 text-sm text-ink/55">Use a unique password to keep your account secure.</p></div>
-        <div className="grid gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
-          <Field label="Current" error={err.current}><PasswordInput value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} placeholder="Enter your current password" autoComplete="current-password" /></Field>
-          <Field label="New" error={err.next}><PasswordInput value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} placeholder="At least 6 characters" autoComplete="new-password" /></Field>
-          <Field label="Confirm" error={err.confirm}><PasswordInput value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} placeholder="Re-enter your new password" autoComplete="new-password" /></Field>
-        </div>
-        <div className="mt-6 flex justify-end"><button className="btn btn-primary w-full sm:w-auto">Update password</button></div>
-      </form>
-      <div className={`${card} flex flex-wrap items-center justify-between gap-4 border-clay/25`}>
-        <div className="min-w-0"><h2 className="font-display text-lg font-semibold text-clay sm:text-xl">Delete account</h2><p className="mt-1 text-sm text-ink/55">Permanently removes your account and all of its trips.</p></div>
-        {deleteErr && <p role="alert" className="w-full text-sm text-clay">{deleteErr}</p>}
-        <button className="btn w-full border border-clay text-clay hover:bg-clay hover:text-white sm:w-auto" onClick={() => { setDeleteErr(''); setConfirm(true) }}>Delete account</button>
-      </div>
-      {confirmPasswordChange && <Confirm
-        title="Update your password?"
-        text="Your current password will be replaced with the new password you entered. You’ll use it the next time you sign in."
-        confirmLabel="Update password"
-        confirmClassName="btn btn-primary"
-        onNo={() => setConfirmPasswordChange(false)}
-        onYes={() => void updatePassword()}
+        </Modal>
+      )}
+      {savedMessage && (
+        <Modal title="Changes saved" onClose={() => setSavedMessage('')} animated>
+          <div className="text-center">
+            <span className="trip-confirm-check mx-auto grid h-14 w-14 place-items-center rounded-full bg-pine/10 text-pine" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="trip-confirm-checkmark h-7 w-7"><path d="m5 12 4 4L19 6" /></svg>
+            </span>
+            <p className="trip-confirm-title mt-4 font-display text-xl font-semibold">All set</p>
+            <p className="trip-confirm-description mt-1 text-sm text-ink/60">{savedMessage}</p>
+            <button type="button" className="trip-confirm-button btn btn-primary mt-6 min-w-28" onClick={() => setSavedMessage('')}>Done</button>
+          </div>
+        </Modal>
+      )}
+      {confirmDelete && <Confirm
+        title="Delete your account?"
+        text="This permanently removes your account, trips, activities, and journal photos. This action cannot be undone."
+        eyebrow="PERMANENT ACTION"
+        icon={<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" /></svg>}
+        animated
+        confirmLabel="Delete account"
+        onNo={() => setConfirmDelete(false)}
+        onYes={() => { void deleteAccount() }}
       />}
-      {confirm && <Confirm title="Delete your account?" text="Your account and every trip and activity will be erased. This cannot be undone." onNo={() => setConfirm(false)} onYes={deleteAccount} />}
     </div>
   )
 }

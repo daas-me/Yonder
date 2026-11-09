@@ -111,7 +111,18 @@ export function PasswordInput({ value, onChange, placeholder, autoComplete }: { 
   )
 }
 
-export function Modal({ title, onClose, children, wide, animated = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; animated?: boolean }) {
+export function UserAvatar({ user, className = 'h-8 w-8 text-sm', imageUrl }: {
+  user: { name: string; photoUrl?: string; avatarColor?: string }
+  className?: string
+  imageUrl?: string
+}) {
+  const initials = user.name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
+  return user.photoUrl
+    ? <img src={imageUrl ?? user.photoUrl} alt="" className={`shrink-0 rounded-full object-cover ${className}`} />
+    : <span className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${className}`} style={{ background: user.avatarColor ?? '#ec6a3c' }}>{initials}</span>
+}
+
+export function Modal({ title, onClose, children, wide, animated = false, eyebrow, subtitle, icon }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; animated?: boolean; eyebrow?: string; subtitle?: string; icon?: ReactNode }) {
   useModalScrollLock()
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -121,9 +132,16 @@ export function Modal({ title, onClose, children, wide, animated = false }: { ti
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center ${animated ? 'modal-enter-backdrop' : ''}`} onClick={onClose}>
       <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface rounded-2xl shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <h3 className="font-display text-lg">{title}</h3>
-          <button className="rounded-md px-2 py-1 text-ink/50 hover:bg-ink/5 hover:text-ink" onClick={onClose} aria-label="Close">✕</button>
+        <div className={`flex items-center justify-between border-b border-line px-5 py-4 sm:px-6 ${eyebrow || subtitle || icon ? 'bg-gradient-to-r from-moss/70 via-card to-clay/[.04] py-5 sm:py-6' : ''}`}>
+          <div className="flex min-w-0 items-center gap-3.5">
+            {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-pine/10 text-pine ring-1 ring-pine/10">{icon}</span>}
+            <div className="min-w-0">
+              {eyebrow && <p className="mono text-[10px] font-semibold uppercase tracking-[.2em] text-pine/75">{eyebrow}</p>}
+              <h3 className={`truncate font-display font-semibold ${eyebrow || subtitle ? 'mt-0.5 text-xl sm:text-2xl' : 'text-lg'}`}>{title}</h3>
+              {subtitle && <p className="mt-1 max-w-xl text-xs leading-relaxed text-ink/55 sm:text-sm">{subtitle}</p>}
+            </div>
+          </div>
+          <button className="ml-3 shrink-0 rounded-lg p-2 text-ink/45 transition hover:bg-ink/5 hover:text-ink" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-scroll overflow-auto p-6">{children}</div>
       </div>
@@ -131,12 +149,12 @@ export function Modal({ title, onClose, children, wide, animated = false }: { ti
   )
 }
 
-export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLabel = 'Delete', confirmClassName = 'btn bg-clay text-white hover:opacity-90' }: { text: string; onYes: () => void; onNo: () => void; title?: string; confirmLabel?: string; confirmClassName?: string }) {
+export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLabel = 'Delete', confirmClassName = 'btn bg-clay text-white hover:opacity-90', eyebrow, icon, animated = false }: { text: string; onYes: () => void; onNo: () => void; title?: string; confirmLabel?: string; confirmClassName?: string; eyebrow?: string; icon?: ReactNode; animated?: boolean }) {
   return (
-    <Modal title={title} onClose={onNo}>
-      <p className="mb-6 text-sm text-ink/70">{text}</p>
-      <div className="flex justify-end gap-2">
-        <button className="btn btn-ghost" onClick={onNo}>Cancel</button>
+    <Modal title={title} onClose={onNo} eyebrow={eyebrow} icon={icon} animated={animated}>
+      <p className="mb-6 text-sm leading-relaxed text-ink/65">{text}</p>
+      <div className="flex flex-col-reverse justify-end gap-2 sm:flex-row">
+        <button className="btn btn-ghost ring-1 ring-line" onClick={onNo}>Cancel</button>
         <button className={confirmClassName} onClick={onYes}>{confirmLabel}</button>
       </div>
     </Modal>

@@ -1,7 +1,7 @@
 // Runtime validation coverage for: trip budgeting and schedule ordering.
 import { describe, expect, it } from 'vitest'
-import type { Activity, Trip } from './model'
-import { daysBetween, defaultTripCover, sortActs, total } from './utils'
+import { DEFAULT_PREFS, prefsOf, type Activity, type Trip } from './model'
+import { daysBetween, defaultTripCover, display, fmtTemp, fmtTime, sortActs, total } from './utils'
 import { incompleteOwnOrderCount, travelerCostBreakdown } from './groupTrips'
 
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
@@ -28,6 +28,28 @@ const trip = (activities: Activity[], extras: Trip['extras'] = []): Trip => ({
 })
 
 describe('trip planning utilities', () => {
+  it('fills missing account preferences with defaults without mutating defaults', () => {
+    const prefs = prefsOf({ notify: { ...DEFAULT_PREFS.notify, budget: false }, packing: ['Valid ID'] })
+
+    expect(prefs.clock).toBe('12')
+    expect(prefs.notify.budget).toBe(false)
+    expect(prefs.notify.tripSoon).toBe(true)
+    expect(prefs.packing).toEqual(['Valid ID'])
+    expect(DEFAULT_PREFS.notify.budget).toBe(true)
+  })
+
+  it('formats times and temperatures using the active display preferences', () => {
+    display.clock24 = true
+    display.fahrenheit = true
+    expect(fmtTime('14:30')).toBe('14:30')
+    expect(fmtTemp(31)).toBe('88°')
+
+    display.clock24 = false
+    display.fahrenheit = false
+    expect(fmtTime('14:30')).toBe('2:30 PM')
+    expect(fmtTemp(31)).toBe('31°')
+  })
+
   it('chooses a default cover that matches the trip theme and destination', () => {
     expect(defaultTripCover('#7a5cc4', 'El Nido, Palawan')).toBe('/covers/yonder-violet-coast.svg')
     expect(defaultTripCover('#17675b', 'Baguio')).toBe('/covers/yonder-pine-mountains.svg')

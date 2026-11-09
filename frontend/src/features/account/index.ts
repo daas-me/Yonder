@@ -1,1 +1,1 @@
-export { default as AccountPage } from './AccountPage'
+export { default as AccountPage, type AccountTab } from './AccountPage'
