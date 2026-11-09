@@ -1,0 +1,11 @@
+{
+  "name": "yonder",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend test",
+    "typecheck": "npm --prefix frontend exec -- tsc --noEmit -p frontend/tsconfig.json",
+    "format": "npm --prefix frontend run format"
+  }
+}

@@ -45,10 +45,11 @@ The implemented React client uses React (not Vue) and talks to the API at `/api`
    ```powershell
    Set-Location .\frontend
    corepack pnpm install --frozen-lockfile
-   corepack pnpm run dev
+   Set-Location ..
+   npm run dev
    ```
 
-   Vite serves the app on port `8443`. Set `YONDER_API_URL` if the API is hosted somewhere other than `http://localhost:8080`.
+   Vite serves the app on port `8443`. The root `package.json` forwards frontend scripts to `frontend/`; dependencies and the pnpm lockfile remain there. Set `YONDER_API_URL` if the API is hosted somewhere other than `http://localhost:8080`.
 
 ## Google Maps
 
@@ -87,10 +88,9 @@ Backend tests use an isolated in-memory H2 database. Production/local runs use M
 Frontend validation:
 
 ```powershell
-Set-Location frontend
-corepack pnpm test
-corepack pnpm exec tsc --noEmit
-corepack pnpm run build
+npm test
+npm run typecheck
+npm run build
 ```
 
 The frontend dev server can be checked at `http://localhost:8443/`. API-backed features require the Spring Boot API and MySQL steps above.
