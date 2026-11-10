@@ -21,10 +21,10 @@ function Photo({ id, photoUrl, className, onClick }: { id: string; photoUrl?: st
 
 type Props = {
   tripId: string; title: string; subtitle: string; cover?: ReactNode; memories: Memory[]; readOnly?: boolean
-  onChange: (m: Memory[]) => void | Promise<void>; onDownload: () => Promise<void>; onClose: () => void; toast: (m: string) => void
+  onChange: (m: Memory[]) => void | Promise<void>; onDownload: () => Promise<void>; onClose: () => void; notify: (m: string) => void
 }
 
-export default function MemoriesModal({ tripId, title, subtitle, cover, memories, readOnly, onChange, onDownload, onClose, toast }: Props) {
+export default function MemoriesModal({ tripId, title, subtitle, cover, memories, readOnly, onChange, onDownload, onClose, notify }: Props) {
   useModalScrollLock()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState('')
@@ -44,10 +44,10 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
         const id = uid() + uid()
         add.push({ memory: { id, kind: 'photo', text: '', at: new Date().toISOString() }, blob: await compress(f) })
       } catch {
-        toast(`Could not process ${f.name}`)
+        notify(`Could not process ${f.name}`)
       }
     }
-    if (!add.length) { setBusy(''); toast('No readable images'); return }
+    if (!add.length) { setBusy(''); notify('No readable images'); return }
     try {
       await onChange([...memories, ...add.map(item => item.memory)])
       const uploaded: Memory[] = []
@@ -56,14 +56,14 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
           const result = await api.uploadMemoryPhoto(tripId, item.memory.id, item.blob)
           uploaded.push({ ...item.memory, photoUrl: result.url })
         } catch (error) {
-          toast(error instanceof Error ? `Could not upload a photo: ${error.message}` : 'Could not upload a photo')
+          notify(error instanceof Error ? `Could not upload a photo: ${error.message}` : 'Could not upload a photo')
           uploaded.push(item.memory)
         }
       }
       await onChange([...memories, ...uploaded])
-      toast(`${uploaded.length} photo${uploaded.length > 1 ? 's' : ''} added`)
+      notify(`${uploaded.length} photo${uploaded.length > 1 ? 's' : ''} added`)
     } catch (error) {
-      toast(error instanceof Error ? `Could not save photos: ${error.message}` : 'Could not save photos')
+      notify(error instanceof Error ? `Could not save photos: ${error.message}` : 'Could not save photos')
     } finally {
       setBusy('')
     }
@@ -78,15 +78,15 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
       await onChange(memories.filter(x => x.id !== m.id))
       if (m.kind === 'photo') await delPhotos([m.id])
       if (view === m.id) setView(null)
-      toast('Memory removed')
+      notify('Memory removed')
     } catch (error) {
-      toast(error instanceof Error ? `Could not remove memory: ${error.message}` : 'Could not remove memory')
+      notify(error instanceof Error ? `Could not remove memory: ${error.message}` : 'Could not remove memory')
     }
   }
   const saveEdit = () => {
     if (!editing?.text.trim()) return
     onChange(memories.map(m => (m.id === editing.id ? { ...m, text: editing.text.trim().slice(0, 5000), edited: new Date().toISOString() } : m)))
-    setEditing(null); toast('Entry updated')
+    setEditing(null); notify('Entry updated')
   }
   const caption = (id: string, t: string) => onChange(memories.map(m => (m.id === id ? { ...m, text: t.slice(0, 300) } : m)))
   const viewIdx = photos.findIndex(p => p.id === view)
@@ -101,7 +101,7 @@ export default function MemoriesModal({ tripId, title, subtitle, cover, memories
           <p className="mt-1 text-sm text-black/55">{subtitle}</p>
           <div className="mt-4 flex gap-4 text-sm text-black/60"><span><b className="font-display text-xl text-black">{photos.length}</b> photos</span><span><b className="font-display text-xl text-black">{memories.length - photos.length}</b> entries</span></div>
           <button className="mt-5 w-full rounded-lg border border-[#17675b] px-4 py-2.5 text-sm font-semibold text-[#17675b] hover:bg-[#17675b] hover:text-white disabled:opacity-40" disabled={!memories.length || !!busy}
-            onClick={async () => { setBusy('Packing zip…'); try { await onDownload() } catch { toast('Could not build the zip') } setBusy('') }}>
+            onClick={async () => { setBusy('Packing zip…'); try { await onDownload() } catch { notify('Could not build the zip') } setBusy('') }}>
             Download memories (.zip)
           </button>
           <span className="absolute right-5 top-5 hidden h-14 w-12 rotate-3 border-2 border-dashed border-[#ec6a3c]/60 sm:block" />

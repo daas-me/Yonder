@@ -160,3 +160,18 @@ export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLab
     </Modal>
   )
 }
+
+export function Notice({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <Modal title="Yonder update" onClose={onClose} animated>
+      <div className="text-center">
+        <span className="trip-confirm-check mx-auto grid h-14 w-14 place-items-center rounded-full bg-pine/10 text-pine" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="trip-confirm-checkmark h-7 w-7"><path d="m5 12 4 4L19 6" /></svg>
+        </span>
+        <p className="trip-confirm-title mt-4 font-display text-xl font-semibold">All set</p>
+        <p className="trip-confirm-description mt-1 text-sm text-ink/60">{text}</p>
+        <button className="trip-confirm-button btn btn-primary mt-6 min-w-28" onClick={onClose}>Done</button>
+      </div>
+    </Modal>
+  )
+}

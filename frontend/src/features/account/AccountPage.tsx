@@ -39,10 +39,10 @@ type Props = {
   onTheme: (theme: ThemePref) => void
   onSignOut: () => void
   onDeleteAccount: () => Promise<void>
-  toast: (message: string) => void
+  notify: (message: string) => void
 }
 
-export default function AccountPage({ user, trips, prefs, theme, initialTab = 'profile', onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onAvatarColor, onPrefs, onEnsureCurrency, currencyRateDate, currencyError, onTheme, onSignOut, onDeleteAccount, toast }: Props) {
+export default function AccountPage({ user, trips, prefs, theme, initialTab = 'profile', onSave, onPhotoUpload, onPhotoRemove, onPasswordChange, onAvatarColor, onPrefs, onEnsureCurrency, currencyRateDate, currencyError, onTheme, onSignOut, onDeleteAccount, notify }: Props) {
   const [tab, setTab] = useState<AccountTab>(initialTab)
   const [profile, setProfile] = useState({ name: user.name, email: user.email, homeCity: user.homeCity })
   const [prefsDraft, setPrefsDraft] = useState(prefs)
@@ -134,7 +134,7 @@ export default function AccountPage({ user, trips, prefs, theme, initialTab = 'p
     try {
       setPendingPhoto(await resizeImage(file, 320))
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'Could not upload your profile photo.')
+      notify(error instanceof Error ? error.message : 'Could not upload your profile photo.')
     }
   }
   const removePhoto = () => setPendingPhoto(user.photoUrl ? null : undefined)

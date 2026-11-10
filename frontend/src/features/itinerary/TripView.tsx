@@ -10,9 +10,9 @@ import { CoverPicker, DuplicateForm, TripForm } from '../trips'
 import { WeatherIcon } from '../weather'
 import { ActivityForm } from './ActivityForm'
 
-type Props = { trip: Trip; fresh?: boolean; readOnly?: boolean; onBack: () => void; onUpdate: (t: Trip) => void | boolean | Promise<void | boolean>; onDelete: () => void; onDuplicate: (t: Trip) => void; toast: (m: string) => void }
+type Props = { trip: Trip; fresh?: boolean; readOnly?: boolean; onBack: () => void; onUpdate: (t: Trip) => void | boolean | Promise<void | boolean>; onDelete: () => void; onDuplicate: (t: Trip) => void; notify: (m: string) => void }
 
-export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDelete, onDuplicate, toast }: Props) {
+export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDelete, onDuplicate, notify }: Props) {
   const [editTrip, setEditTrip] = useState(false)
   const [tripUpdated, setTripUpdated] = useState<Trip | null>(null)
   const [actForm, setActForm] = useState<{ act?: Activity; init?: Partial<Activity> } | null>(null)
@@ -76,7 +76,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
     if (p.image === undefined && current?.image?.includes('/photos/activities/')) {
       void api.deleteActivityPhoto(tripRef.current.id, id)
         .then(save)
-        .catch(error => toast(error instanceof Error ? `Could not remove photo: ${error.message}` : 'Could not remove photo'))
+        .catch(error => notify(error instanceof Error ? `Could not remove photo: ${error.message}` : 'Could not remove photo'))
       return
     }
     save()
@@ -94,16 +94,16 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
       await new Promise(r => setTimeout(r, 1100)) // respect Nominatim rate limit
     }
     setLocating(false)
-    toast(miss ? `${miss} location(s) could not be found` : 'All activities pinned')
+    notify(miss ? `${miss} location(s) could not be found` : 'All activities pinned')
   }
   const attach = async (a: Activity, f?: File) => {
     if (!f) return
     try {
       const { url } = await api.uploadActivityPhoto(trip.id, a.id, await compress(f, 1600))
       patchAct(a.id, { image: url })
-      toast('Photo attached')
+      notify('Photo attached')
     } catch (error) {
-      toast(error instanceof Error ? `Could not attach photo: ${error.message}` : 'Could not attach photo')
+      notify(error instanceof Error ? `Could not attach photo: ${error.message}` : 'Could not attach photo')
     }
   }
   const createShare = async () => {
@@ -113,9 +113,9 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
       const link = shareLink(result.token)
       setShare(link)
       setShareExpires(new Date(result.expiresAt).toLocaleDateString())
-      navigator.clipboard?.writeText(link).then(() => toast('Share link copied'), () => {})
+      navigator.clipboard?.writeText(link).then(() => notify('Share link copied'), () => {})
     } catch (error) {
-      toast(error instanceof Error ? `Could not create share link: ${error.message}` : 'Could not create share link')
+      notify(error instanceof Error ? `Could not create share link: ${error.message}` : 'Could not create share link')
     } finally {
       setShareBusy(false)
     }
@@ -317,7 +317,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
                                   <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/40">{display.currency}</span>
                                   <input key={`${a.id}-${a.actual ?? ''}-${display.currency}`} className="input w-32 py-1 pl-10 text-sm tabular-nums" inputMode="decimal" placeholder="0.00" defaultValue={a.actual == null ? '' : fromBaseCurrency(a.actual).toFixed(2)}
                                     onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                    onBlur={e => { const v = e.target.value.trim(); const initialValue = a.actual == null ? '' : fromBaseCurrency(a.actual).toFixed(2); if (v === initialValue) return; if (v === '') { if (a.actual != null) patchAct(a.id, { actual: undefined }); return } if (!/^\d+(\.\d{1,2})?$/.test(v)) { toast('Enter an amount with up to 2 decimals'); e.target.value = initialValue; return } const baseValue = toBaseCurrency(Number(v)); if (baseValue !== a.actual) { patchAct(a.id, { actual: baseValue }); toast('Spending logged') } }} />
+                                    onBlur={e => { const v = e.target.value.trim(); const initialValue = a.actual == null ? '' : fromBaseCurrency(a.actual).toFixed(2); if (v === initialValue) return; if (v === '') { if (a.actual != null) patchAct(a.id, { actual: undefined }); return } if (!/^\d+(\.\d{1,2})?$/.test(v)) { notify('Enter an amount with up to 2 decimals'); e.target.value = initialValue; return } const baseValue = toBaseCurrency(Number(v)); if (baseValue !== a.actual) { patchAct(a.id, { actual: baseValue }); notify('Spending logged') } }} />
                                 </span>
                               </label>
                               {a.actual != null && <span className={`text-xs font-medium ${a.actual > a.cost ? 'text-clay' : 'text-pine'}`}>{a.actual > a.cost ? `${php(a.actual - a.cost)} over` : a.actual < a.cost ? `${php(a.cost - a.actual)} under` : 'On budget'}</span>}
@@ -343,7 +343,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
             </div>
           )}
 
-          {mode === 'board' && <Tripboard trip={trip} days={days} weather={weather} readOnly={readOnly} memCount={memCount} onOpenJournal={setJournal} onAttach={attach} onLocate={locate} onPatch={patchAct} toast={toast} />}
+          {mode === 'board' && <Tripboard trip={trip} days={days} weather={weather} readOnly={readOnly} memCount={memCount} onOpenJournal={setJournal} onAttach={attach} onLocate={locate} onPatch={patchAct} notify={notify} />}
 
           {mode === 'discover' && <Discover trip={trip} fresh={fresh} added={new Set(trip.activities.map(a => a.title.toLowerCase()))} onAdd={init => setActForm({ init })} />}
 
@@ -355,7 +355,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
                   <li key={a.id} className="flex min-w-0 items-center gap-3 rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-line">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ background: CATS[catOf(a)].color }}>{a.n}</span>
                     <span className="min-w-0 flex-1 truncate">{a.title} <span className="text-ink/50">· {a.location}</span></span>
-                    {a.lat == null && !readOnly && <button className="text-xs font-semibold text-pine" onClick={async () => toast((await locate(a)) ? 'Pinned' : 'Location not found')}>Pin</button>}
+                    {a.lat == null && !readOnly && <button className="text-xs font-semibold text-pine" onClick={async () => notify((await locate(a)) ? 'Pinned' : 'Location not found')}>Pin</button>}
                   </li>
                 ))}
               </ol>
@@ -415,7 +415,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
         const moved = prev && prev.location !== a.location
         const next = moved ? { ...a, lat: undefined, lon: undefined } : a
         onUpdate({ ...trip, activities: prev ? trip.activities.map(x => (x.id === a.id ? next : x)) : [...trip.activities, next] })
-        setActForm(null); toast(prev ? 'Activity updated' : 'Activity added')
+        setActForm(null); notify(prev ? 'Activity updated' : 'Activity added')
       }} />}
       {confirm && <Confirm
         text={confirm.kind === 'trip' ? `"${trip.name}" and all ${trip.activities.length} activities will be permanently deleted.` : 'This activity will be removed from your itinerary.'}
@@ -425,7 +425,7 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
           else {
             const gone = trip.activities.find(a => a.id === confirm.id)
             delPhotos((gone?.memories ?? []).filter(m => m.kind === 'photo').map(m => m.id))
-            onUpdate({ ...trip, activities: trip.activities.filter(a => a.id !== confirm.id) }); toast('Activity deleted')
+            onUpdate({ ...trip, activities: trip.activities.filter(a => a.id !== confirm.id) }); notify('Activity deleted')
           }
           setConfirm(null)
         }} />}
@@ -434,13 +434,13 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
           <p className="mb-4 text-sm text-ink/70">Anyone with this link can view a read-only copy of this trip, including journal and activity photos. This link expires {shareExpires || 'in 30 days'}; revoking links disables every active share link for this trip.</p>
           <div className="flex gap-2">
             <input className="input" readOnly value={share} onFocus={e => e.target.select()} />
-            <button className="btn btn-primary" onClick={() => navigator.clipboard?.writeText(share).then(() => toast('Link copied'), () => toast('Copy failed — select and copy manually'))}>Copy</button>
+            <button className="btn btn-primary" onClick={() => navigator.clipboard?.writeText(share).then(() => notify('Link copied'), () => notify('Copy failed — select and copy manually'))}>Copy</button>
           </div>
           <div className="mt-4 flex justify-between gap-3">
             <button className="btn btn-ghost ring-1 ring-line" onClick={() => void createShare()} disabled={shareBusy}>Create another link</button>
             <button className="btn btn-danger" onClick={async () => {
-              try { await api.revokeShares(trip.id); setShare(''); toast('All share links revoked') }
-              catch (error) { toast(error instanceof Error ? `Could not revoke links: ${error.message}` : 'Could not revoke links') }
+              try { await api.revokeShares(trip.id); setShare(''); notify('All share links revoked') }
+              catch (error) { notify(error instanceof Error ? `Could not revoke links: ${error.message}` : 'Could not revoke links') }
             }}>Revoke all links</button>
           </div>
         </Modal>
@@ -461,10 +461,10 @@ export default function TripView({ trip, fresh, readOnly, onBack, onUpdate, onDe
           }}
           onDownload={() => downloadMemories(trip, openAct?.id)}
           onClose={() => setJournal(null)}
-          toast={toast}
+          notify={notify}
         />
       )}
-      {coverOpen && <CoverPicker trip={trip} onClose={() => setCoverOpen(false)} onSave={p => { onUpdate({ ...tripRef.current, ...p }); setCoverOpen(false); toast('Cover updated') }} />}
+      {coverOpen && <CoverPicker trip={trip} onClose={() => setCoverOpen(false)} onSave={p => { onUpdate({ ...tripRef.current, ...p }); setCoverOpen(false); notify('Cover updated') }} />}
       {budgetOpen && <BudgetModal trip={trip} readOnly={readOnly} onUpdate={onUpdate} onClose={() => setBudgetOpen(false)} />}
       {dup && <DuplicateForm trip={trip} onClose={() => setDup(false)} onSave={t => { setDup(false); onDuplicate(t) }} />}
     </div>
