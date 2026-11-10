@@ -20,6 +20,24 @@ function initialTheme(): ThemePref {
 }
 
 function initialView(): AppView {
+  const path = location.pathname.replace(/\/+$/, '') || '/'
+  if (path === '/account') {
+    const tab = new URLSearchParams(location.search).get('tab')
+    if (tab === 'profile' || tab === 'defaults' || tab === 'notifications' || tab === 'display' || tab === 'security') {
+      return { page: 'account', tab }
+    }
+    return { page: 'account' }
+  }
+  const tripMatch = path.match(/^\/trips\/([^/]+)$/)
+  if (tripMatch) {
+    try {
+      return { page: 'trip', id: decodeURIComponent(tripMatch[1]) }
+    } catch {
+      return { page: 'trips' }
+    }
+  }
+  if (path === '/home') return { page: 'trips' }
+
   try {
     const saved = sessionStorage.getItem('yonder.view')
     if (saved) {
@@ -31,6 +49,12 @@ function initialView(): AppView {
     // Ignore unavailable or malformed session state and start at the trip list.
   }
   return { page: 'trips' }
+}
+
+function viewPath(view: AppView) {
+  if (view.page === 'account') return view.tab ? `/account?tab=${encodeURIComponent(view.tab)}` : '/account'
+  if (view.page === 'trip') return `/trips/${encodeURIComponent(view.id)}`
+  return '/home'
 }
 
 function UserAvatar({ user, className = 'h-10 w-10' }: { user: User; className?: string }) {
@@ -48,7 +72,19 @@ export default function App() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [authLoading, setAuthLoading] = useState(true)
   const [view, setView] = useState<AppView>(initialView)
+  const navigate = (next: AppView) => {
+    const path = viewPath(next)
+    if (`${location.pathname}${location.search}` !== path) history.pushState(null, '', path)
+    setView(next)
+  }
   useEffect(() => {
+    const onPopState = () => setView(initialView())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+  useEffect(() => {
+    const path = viewPath(view)
+    if (`${location.pathname}${location.search}` !== path) history.replaceState(null, '', path)
     try {
       sessionStorage.setItem('yonder.view', JSON.stringify(view))
     } catch {
@@ -142,7 +178,7 @@ export default function App() {
     for (const note of notes) {
       if (shown.has(note.id)) continue
       const popup = new Notification(note.title, { body: note.body, tag: note.id, icon: '/favicon.ico' })
-      popup.onclick = () => { window.focus(); setView({ page: 'trip', id: note.tripId }); popup.close() }
+      popup.onclick = () => { window.focus(); navigate({ page: 'trip', id: note.tripId }); popup.close() }
       shown.add(note.id)
     }
     localStorage.setItem(key, JSON.stringify([...shown].slice(-200)))
@@ -196,7 +232,7 @@ export default function App() {
     const userTrips = await api.listTrips()
     setUser({ ...signedInUser, avatarColor: load<string>(`yonder.avatarColor.${signedInUser.id}`, '#ec6a3c') })
     setTrips(userTrips)
-    setView({ page: 'trips' })
+    navigate({ page: 'trips' })
   }
   const register = async (name: string, email: string, password: string) => {
     await api.register(name, email, password)
@@ -257,13 +293,19 @@ export default function App() {
   const bell = (up: boolean) => <NotificationBell
     notes={notes}
     up={up}
-    onOpenTrip={id => setView({ page: 'trip', id })}
+    onOpenTrip={id => navigate({ page: 'trip', id })}
     onDismiss={note => dismissNotes([note.id])}
     onDismissAll={() => dismissNotes(notes.map((note: Note) => note.id))}
-    onSettings={() => setView({ page: 'account', tab: 'notifications' })}
+    onSettings={() => navigate({ page: 'account', tab: 'notifications' })}
   />
   const noticeEl = notice && <Notice text={notice} onClose={() => setNotice('')} />
-  const exitShare = () => { history.replaceState(null, '', location.pathname); setShared(null); setShareError(''); setShareLoading(false) }
+  const exitShare = () => {
+    history.replaceState(null, '', '/home')
+    setShared(null)
+    setShareError('')
+    setShareLoading(false)
+    navigate({ page: 'trips' })
+  }
   if (shareLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Opening shared itinerary…</div>
   if (shareError) return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -289,7 +331,7 @@ export default function App() {
                 activities: shared.activities.map(activity => ({ ...activity, id: uid(), image: undefined, memories: undefined })),
               }
               void createTrip(copy)
-                .then(t => { exitShare(); setView({ page: 'trip', id: t.id }); setNotice('Saved to your trips') })
+                .then(t => { exitShare(); navigate({ page: 'trip', id: t.id }); setNotice('Saved to your trips') })
                 .catch(error => setNotice(error instanceof Error ? error.message : 'Could not save trip'))
             }}>Save to my trips</button>}
             <button className="btn btn-primary" onClick={exitShare}>{user ? 'Back to Yonder' : 'Plan your own'}</button>
@@ -309,10 +351,10 @@ export default function App() {
   const today = new Date().toISOString().slice(0, 10)
   const hasUpcomingTrips = mine.some(trip => trip.end >= today)
   const navItems: { key: 'trips' | 'new' | 'import' | 'account'; label: string; active: boolean; on: () => void }[] = [
-    { key: 'trips', label: 'My trips', active: view.page !== 'account', on: () => setView({ page: 'trips' }) },
+    { key: 'trips', label: 'My trips', active: view.page !== 'account', on: () => navigate({ page: 'trips' }) },
     { key: 'new', label: 'New trip', active: false, on: () => setNewTrip(true) },
     { key: 'import', label: 'Import', active: false, on: () => setImporting(true) },
-    { key: 'account', label: 'Account', active: view.page === 'account', on: () => setView({ page: 'account' }) },
+    { key: 'account', label: 'Account', active: view.page === 'account', on: () => navigate({ page: 'account' }) },
   ]
   const Icon = ({ d, className = '' }: { d: string; className?: string }) => <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={d} /></svg>
   const NavIcon = ({ name, className = '' }: { name: typeof navItems[number]['key']; className?: string }) => (
@@ -323,7 +365,7 @@ export default function App() {
       {name === 'account' && <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /><path d="M18.5 4.5v4m-2-2h4" /></>}
     </svg>
   )
-  const openAccount = () => { setView({ page: 'account' }); setMenu(false) }
+  const openAccount = () => { navigate({ page: 'account' }); setMenu(false) }
   const navButtonClass = (active: boolean, compact: boolean) =>
     `group relative flex w-full items-center gap-3 rounded-2xl py-2.5 text-sm transition-all duration-200 ${compact ? 'justify-center px-0' : 'px-3'} ${active ? 'bg-pine/[.08] font-semibold text-ink shadow-sm ring-1 ring-pine/10' : 'text-ink/65 hover:bg-ink/[.035] hover:text-ink'}`
 
@@ -333,7 +375,7 @@ export default function App() {
       {side !== 'hidden' && (
         <aside className={`no-print fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-card/90 shadow-[8px_0_32px_-24px_rgba(22,32,29,.35)] backdrop-blur-xl transition-[width] duration-200 lg:flex ${side === 'rail' ? 'w-[4.5rem]' : 'w-64'}`}>
           <div className={`flex min-h-16 items-center border-b border-line py-4 ${side === 'rail' ? 'justify-center px-2' : 'justify-between px-4'}`}>
-            <button onClick={() => setView({ page: 'trips' })} title="Yonder"><Logo compact={side === 'rail'} /></button>
+            <button onClick={() => navigate({ page: 'trips' })} title="Yonder"><Logo compact={side === 'rail'} /></button>
             {side === 'full' && (
               <div className="flex">
                 <button title="Collapse sidebar" aria-label="Collapse sidebar" onClick={() => setSide('rail')} className="rounded-md p-1.5 text-ink/50 hover:bg-ink/5 hover:text-ink"><Icon d="M15 6l-6 6 6 6" /></button>
@@ -409,7 +451,7 @@ export default function App() {
 
       {/* Top bar (mobile) */}
       <header className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-line2 bg-sand px-4 py-3 text-ink shadow-sm lg:hidden">
-        <button onClick={() => setView({ page: 'trips' })}><Logo /></button>
+        <button onClick={() => navigate({ page: 'trips' })}><Logo /></button>
         <div className="flex items-center gap-1">{themeBtn}{bell(false)}
           <button onClick={() => setMenu(!menu)} aria-label="Open account menu" aria-expanded={menu} className="profile-trigger group rounded-full transition"><UserAvatar user={user} className="profile-avatar h-9 w-9" /></button>
         </div>
@@ -436,21 +478,21 @@ export default function App() {
         ))}
       </nav>
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-8 lg:pb-12 lg:pt-10">
-        {view.page === 'trips' && <TripList trips={mine} user={user} onOpen={id => setView({ page: 'trip', id })} onNew={() => setNewTrip(true)} onImport={() => setImporting(true)} onCover={(id, p) => { const trip = mine.find(item => item.id === id); if (trip) { persistTrip({ ...trip, ...p }); setNotice('Cover updated') } }} />}
+        {view.page === 'trips' && <TripList trips={mine} user={user} onOpen={id => navigate({ page: 'trip', id })} onNew={() => setNewTrip(true)} onImport={() => setImporting(true)} onCover={(id, p) => { const trip = mine.find(item => item.id === id); if (trip) { persistTrip({ ...trip, ...p }); setNotice('Cover updated') } }} />}
         {view.page === 'trip' && (current ? (
-          <TripView trip={current} fresh={view.page === 'trip' && view.fresh} onBack={() => setView({ page: 'trips' })} onUpdate={updateTrip} notify={setNotice} key={current.id}
+          <TripView trip={current} fresh={view.page === 'trip' && view.fresh} onBack={() => navigate({ page: 'trips' })} onUpdate={updateTrip} notify={setNotice} key={current.id}
             onDuplicate={t => {
               void createTrip({ ...t, id: uid(), ownerId: user.id })
-                .then(c => { setView({ page: 'trip', id: c.id }); setNotice('Template copied') })
+                .then(c => { navigate({ page: 'trip', id: c.id }); setNotice('Template copied') })
                 .catch(error => setNotice(error instanceof Error ? error.message : 'Could not copy trip'))
             }}
             onDelete={() => {
               void api.deleteTrip(current.id).then(() => {
-                delPhotos(photoIds(current)); setTrips(ts => ts.filter(t => t.id !== current.id)); setView({ page: 'trips' }); setNotice('Trip deleted')
+                delPhotos(photoIds(current)); setTrips(ts => ts.filter(t => t.id !== current.id)); navigate({ page: 'trips' }); setNotice('Trip deleted')
               }).catch(error => setNotice(error instanceof Error ? error.message : 'Could not delete trip'))
             }} />
         ) : (
-          <div className="py-20 text-center"><div className="text-sm text-clay">Error 404</div><h2 className="mt-1 font-display text-3xl">Trip not found</h2><button className="btn btn-primary mt-6" onClick={() => setView({ page: 'trips' })}>Back to trips</button></div>
+          <div className="py-20 text-center"><div className="text-sm text-clay">Error 404</div><h2 className="mt-1 font-display text-3xl">Trip not found</h2><button className="btn btn-primary mt-6" onClick={() => navigate({ page: 'trips' })}>Back to trips</button></div>
         ))}
         {view.page === 'account' && <AccountPage user={user} trips={mine} prefs={prefs} theme={theme} notes={allNotes} initialTab={view.tab} onPrefs={savePrefs} onEnsureCurrency={ensureCurrencyRate}
           currencyRateDate={currencyQuote?.currency === prefs.currency ? currencyQuote.date : undefined} currencyError={currencyError} onTheme={setTheme}
@@ -473,17 +515,17 @@ export default function App() {
           onDeleteAccount={async () => {
             await api.deleteAccount()
             delPhotos(mine.flatMap(photoIds))
-            setTrips([]); setUser(null); setView({ page: 'trips' })
+            setTrips([]); setUser(null); navigate({ page: 'trips' })
           }} />}
       </main>
       {newTrip && <TripForm defaults={prefs} onClose={() => setNewTrip(false)} onSave={v => {
         const t: Trip = { ...v, id: uid(), ownerId: user.id, activities: [], checklist: packingList() }
-        void createTrip(t).then(saved => { setNewTrip(false); setView({ page: 'trip', id: saved.id, fresh: true }); setNotice('Trip created') })
+        void createTrip(t).then(saved => { setNewTrip(false); navigate({ page: 'trip', id: saved.id, fresh: true }); setNotice('Trip created') })
           .catch(error => setNotice(error instanceof Error ? error.message : 'Could not create trip'))
       }} />}
       {importing && <ImportModal onClose={() => setImporting(false)} onCreate={v => {
         const t: Trip = { ...v, id: uid(), ownerId: user.id, checklist: v.checklist?.length ? v.checklist : packingList() }
-        void createTrip(t).then(saved => { setImporting(false); setView({ page: 'trip', id: saved.id, fresh: true }); setNotice('Itinerary imported') })
+        void createTrip(t).then(saved => { setImporting(false); navigate({ page: 'trip', id: saved.id, fresh: true }); setNotice('Itinerary imported') })
           .catch(error => setNotice(error instanceof Error ? error.message : 'Could not import itinerary'))
       }} />}
       {confirmSignOut && <Confirm

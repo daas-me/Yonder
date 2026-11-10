@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://yonder-api-7o3e.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

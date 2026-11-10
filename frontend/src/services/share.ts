@@ -4,5 +4,5 @@ export function readShareToken(): string | null {
 }
 
 export function shareLink(token: string) {
-  return `${location.origin}${location.pathname}#share=${token}`
+  return `${location.origin}/home#share=${token}`
 }
