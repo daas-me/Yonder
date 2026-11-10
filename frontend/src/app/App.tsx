@@ -219,7 +219,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('yonder.sidebar', JSON.stringify(side)), [side])
 
   useEffect(() => {
-    if (view.page === 'landing' || view.page === 'login' || view.page === 'register' || readShareToken()) return
+    if (view.page === 'login' || view.page === 'register' || readShareToken()) return
     let active = true
     api.currentUser()
       .then(async currentUser => ({ currentUser, trips: await api.listTrips() }))

@@ -91,18 +91,20 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
         </div>
       </section>
       <section className="auth-panel flex min-w-0 items-center justify-center overflow-hidden p-6 sm:p-10">
-        <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+        <form onSubmit={submit} className="w-full max-w-sm space-y-4" aria-busy={busy}>
           <div className="mb-8 lg:hidden"><Logo /></div>
           <h2 className="font-display text-3xl">{mode === 'login' ? 'Welcome back' : 'Start your journey'}</h2>
           <p className="pb-2 text-sm text-ink/60">{mode === 'login' ? 'Sign in to your travel plans.' : 'Create an account to plan trips.'}</p>
+          <fieldset disabled={busy} className="min-w-0 space-y-4 border-0 p-0">
           {mode === 'register' && <Field label="Full name" error={err.name}><input className="input" value={f.name} onChange={set('name')} placeholder="Juan Dela Cruz" autoComplete="name" /></Field>}
           <Field label="Email" error={err.email}><input className="input" type="email" value={f.email} onChange={set('email')} placeholder="you@example.com" /></Field>
           <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
           {mode === 'register' && <p className="-mt-2 text-xs leading-relaxed text-ink/55">At least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>}
           {mode === 'register' && <Field label="Confirm password" error={err.confirm}><PasswordInput value={f.confirm} onChange={set('confirm')} placeholder="Re-enter your password" autoComplete="new-password" /></Field>}
           {err.form && <p role="alert" className="rounded-xl border border-clay/20 bg-clay/10 px-3 py-2.5 text-sm leading-relaxed text-clay">{err.form}</p>}
-          <button className="btn btn-primary inline-flex w-full items-center justify-center py-3" disabled={busy} aria-busy={busy}>
-            {busy ? mode === 'register' ? 'Creating account...' : 'Signing in...' : mode === 'login' ? 'Sign in' : 'Create account'}
+          <button className="btn btn-primary inline-flex w-full items-center justify-center gap-2 py-3" type="submit">
+            {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />}
+            <span>{busy ? mode === 'register' ? 'Creating account...' : 'Signing in...' : mode === 'login' ? 'Sign in' : 'Create account'}</span>
           </button>
           {busy && <p role="status" className="sr-only">{mode === 'register' ? 'Creating account...' : 'Signing in...'}</p>}
           <p className="text-center text-sm text-ink/60">
@@ -117,6 +119,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
               {mode === 'login' ? 'Create one' : 'Sign in'}
             </button>
           </p>
+          </fieldset>
         </form>
       </section>
     </div>
