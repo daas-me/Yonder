@@ -231,6 +231,11 @@ export default function App() {
       .finally(() => { if (active) setAuthLoading(false) })
     return () => { active = false }
   }, [])
+  useEffect(() => {
+    if (authLoading || user || readShareToken() || view.page === 'login' || view.page === 'register') return
+    history.replaceState(null, '', '/login')
+    setView({ page: 'login' })
+  }, [authLoading, user, view.page])
   const signIn = async (email: string, password: string) => {
     const signedInUser = await api.login(email, password)
     const userTrips = await api.listTrips()
