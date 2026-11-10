@@ -6,7 +6,7 @@ import { TripView } from '../features/itinerary'
 import { delPhotos, photoIds } from '../features/memories'
 import { NotificationBell } from '../features/notifications'
 import { TripForm, TripList } from '../features/trips'
-import { ApiError, api, assetUrl, fetchCurrencyQuote, readShareToken, type CurrencyQuote } from '../services'
+import { api, assetUrl, fetchCurrencyQuote, readShareToken, type CurrencyQuote } from '../services'
 import { Confirm, DEFAULT_PREFS, display, load, Logo, Notice, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
@@ -224,10 +224,8 @@ export default function App() {
           navigate(pendingProtectedView.current ?? { page: 'trips' })
         }
       })
-      .catch(error => {
-        if (active && (!(error instanceof ApiError) || error.status !== 401)) {
-          setNotice(error instanceof Error ? error.message : 'Could not connect to Yonder API')
-        }
+      .catch(() => {
+        // Session restoration is best-effort; interactive auth reports API failures.
       })
     return () => { active = false }
   }, [])

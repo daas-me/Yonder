@@ -53,9 +53,9 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'login', o
         </div>
         <div className="soft flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
           <div className="flex-1 p-5">
-            <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0001</div>
-            <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>MNL</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">BAG</span></div>
-            <div className="mono mt-4 grid grid-cols-3 text-[10px] uppercase text-ink/45"><span>Depart<br /><b className="text-sm font-normal text-ink">20 Nov</b></span><span>Days<br /><b className="text-sm font-normal text-ink">03</b></span><span>Budget<br /><b className="text-sm font-normal text-ink">₱3,000</b></span></div>
+            <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0053</div>
+            <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>CGY</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">CEB</span></div>
+            <div className="mono mt-4 grid grid-cols-3 text-[10px] uppercase text-ink/45"><span>Depart<br /><b className="text-sm font-normal text-ink">17 DEC</b></span><span>Days<br /><b className="text-sm font-normal text-ink">08</b></span><span>Budget<br /><b className="text-sm font-normal text-ink">₱13,000</b></span></div>
           </div>
           <div className="flex w-24 flex-col justify-between border-l border-dashed border-line2 p-4">
             <span className="mono text-[10px] uppercase text-ink/45">Seat 1A</span>
