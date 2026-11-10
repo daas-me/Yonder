@@ -73,8 +73,8 @@ function UserAvatar({ user, className = 'h-10 w-10' }: { user: User; className?:
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [trips, setTrips] = useState<Trip[]>([])
-  const [authLoading, setAuthLoading] = useState(true)
   const [view, setView] = useState<AppView>(initialView)
+  const pendingProtectedView = useRef<AppView | null>(null)
   const navigate = (next: AppView) => {
     const path = viewPath(next)
     if (`${location.pathname}${location.search}` !== path) history.pushState(null, '', path)
@@ -213,6 +213,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('yonder.sidebar', JSON.stringify(side)), [side])
 
   useEffect(() => {
+    if (view.page === 'login' || view.page === 'register' || readShareToken()) return
     let active = true
     api.currentUser()
       .then(async currentUser => ({ currentUser, trips: await api.listTrips() }))
@@ -220,7 +221,7 @@ export default function App() {
         if (active) {
           setUser({ ...result.currentUser, avatarColor: load<string>(`yonder.avatarColor.${result.currentUser.id}`, '#ec6a3c') })
           setTrips(result.trips)
-          if (location.pathname === '/login' || location.pathname === '/register') navigate({ page: 'trips' })
+          navigate(pendingProtectedView.current ?? { page: 'trips' })
         }
       })
       .catch(error => {
@@ -228,14 +229,14 @@ export default function App() {
           setNotice(error instanceof Error ? error.message : 'Could not connect to Yonder API')
         }
       })
-      .finally(() => { if (active) setAuthLoading(false) })
     return () => { active = false }
   }, [])
   useEffect(() => {
-    if (authLoading || user || readShareToken() || view.page === 'login' || view.page === 'register') return
+    if (user || readShareToken() || view.page === 'login' || view.page === 'register') return
+    pendingProtectedView.current = view
     history.replaceState(null, '', '/login')
     setView({ page: 'login' })
-  }, [authLoading, user, view.page])
+  }, [user, view])
   const signIn = async (email: string, password: string) => {
     const signedInUser = await api.login(email, password)
     const userTrips = await api.listTrips()
@@ -351,7 +352,6 @@ export default function App() {
       {noticeEl}
     </div>
   )
-  if (authLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Connecting to Yonder…</div>
   if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage
     initialMode={view.page === 'register' ? 'register' : 'login'}
     onModeChange={mode => navigate({ page: mode })}
