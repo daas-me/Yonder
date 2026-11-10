@@ -3,8 +3,10 @@ import { ApiError } from '../../services'
 import { Field, Logo, PasswordInput } from '../../shared'
 
 /* ---------------- Auth ---------------- */
-export default function AuthPage({ onLogin, onRegister, initialMode = 'login', onModeChange }: { onLogin: (email: string, password: string) => Promise<void>; onRegister: (name: string, email: string, password: string) => Promise<void>; initialMode?: 'login' | 'register'; onModeChange?: (mode: 'login' | 'register') => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode)
+type AuthMode = 'landing' | 'login' | 'register'
+
+export default function AuthPage({ onLogin, onRegister, initialMode = 'landing', onModeChange }: { onLogin: (email: string, password: string) => Promise<void>; onRegister: (name: string, email: string, password: string) => Promise<void>; initialMode?: AuthMode; onModeChange?: (mode: 'login' | 'register') => void }) {
+  const [mode, setMode] = useState<AuthMode>(initialMode)
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
   const [err, setErr] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -44,14 +46,33 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'login', o
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-card p-12 lg:flex">
-        <div className="flex items-center"><Logo /></div>
-        <div>
-          <h1 className="font-display text-6xl leading-[1.02]">Make room<br /><span className="text-pine">for the moments.</span></h1>
-          <p className="mt-5 max-w-md text-ink/65">Plan every day, discover places to go, and keep your travel budget on track. Bring your itinerary, trip details, and favorite memories together in one place—from the first idea to the journey home.</p>
+    <div className="auth-shell min-h-screen" data-mode={mode}>
+      <section className="auth-landing-panel relative flex min-w-0 flex-col justify-between overflow-hidden border-r border-line bg-card p-6 sm:p-10 lg:p-12">
+        <div className="auth-background-art absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+          <svg viewBox="0 0 760 640" fill="none" className="auth-route-illustration absolute">
+            <circle cx="460" cy="320" r="248" fill="currentColor" opacity=".04" />
+            <circle cx="460" cy="320" r="248" stroke="currentColor" strokeOpacity=".18" />
+            <ellipse cx="460" cy="320" rx="112" ry="248" stroke="currentColor" strokeOpacity=".14" />
+            <path d="M212 320h496M460 72c-58 66-88 151-88 248s30 182 88 248m0-496c58 66 88 151 88 248s-30 182-88 248" stroke="currentColor" strokeOpacity=".12" />
+            <path d="M77 485c98-16 137-126 234-126 77 0 103 58 174 58 79 0 105-85 198-85" stroke="currentColor" strokeOpacity=".36" strokeWidth="2" strokeDasharray="7 11" strokeLinecap="round" />
+            <circle cx="77" cy="485" r="8" fill="currentColor" fillOpacity=".2" stroke="currentColor" strokeOpacity=".55" strokeWidth="2" />
+            <circle cx="311" cy="359" r="7" fill="currentColor" fillOpacity=".2" stroke="currentColor" strokeOpacity=".55" strokeWidth="2" />
+            <circle cx="485" cy="417" r="7" fill="currentColor" fillOpacity=".2" stroke="currentColor" strokeOpacity=".55" strokeWidth="2" />
+            <circle cx="683" cy="332" r="10" fill="var(--color-clay)" fillOpacity=".24" stroke="var(--color-clay)" strokeOpacity=".6" strokeWidth="2" />
+          </svg>
         </div>
-        <div className="soft flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
+        <div className="relative z-10 flex items-center"><Logo /></div>
+        <div className={`auth-hero relative z-10 ${mode === 'landing' ? 'auth-hero-welcome' : ''}`}>
+          <div className="auth-copy">
+            <h1 className="font-display text-5xl leading-[1.02] sm:text-6xl xl:text-7xl">Make room<br /><span className="text-pine">for the moments.</span></h1>
+            <p className="mt-5 max-w-md text-sm leading-relaxed text-ink/65 sm:text-base">Plan every day, discover places to go, and keep your travel budget on track. Bring your itinerary, trip details, and favorite memories together in one place—from the first idea to the journey home.</p>
+            {mode === 'landing' && <div className="mt-7 flex flex-wrap gap-3">
+                <button type="button" className="btn btn-primary px-6 py-3" onClick={() => onModeChange?.('login')}>Sign in</button>
+                <button type="button" className="btn btn-ghost px-6 py-3 ring-1 ring-line2" onClick={() => onModeChange?.('register')}>Create an account</button>
+              </div>}
+          </div>
+        </div>
+        <div className="soft relative z-10 flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
           <div className="flex-1 p-5">
             <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0053</div>
             <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>CGY</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">CEB</span></div>
@@ -62,8 +83,8 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'login', o
             <div className="barcode h-8 w-full" />
           </div>
         </div>
-      </div>
-      <div className="flex items-center justify-center p-6">
+      </section>
+      <section className="auth-panel flex min-w-0 items-center justify-center overflow-hidden p-6 sm:p-10">
         <form onSubmit={submit} className="w-full max-w-sm space-y-4">
           <div className="mb-8 lg:hidden"><Logo /></div>
           <h2 className="font-display text-3xl">{mode === 'login' ? 'Welcome back' : 'Start your journey'}</h2>
@@ -90,7 +111,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'login', o
             </button>
           </p>
         </form>
-      </div>
+      </section>
     </div>
   )
 }

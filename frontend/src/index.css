@@ -41,6 +41,45 @@
 .dark .btn-primary { color: #0c1311; }
 
 body { background: var(--color-sand); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  transition: grid-template-columns .65s cubic-bezier(.2,.8,.2,1);
+}
+.auth-shell[data-mode='landing'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+  height: 100svh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+.auth-landing-panel, .auth-panel { transition: opacity .4s ease, transform .65s cubic-bezier(.2,.8,.2,1); }
+.auth-hero-welcome .auth-copy { max-width: 760px; margin-inline: auto; }
+.auth-background-art { color: var(--color-pine); opacity: .75; pointer-events: none; }
+.dark .auth-background-art { opacity: .45; }
+.auth-route-illustration { top: 52%; right: -8%; width: min(60vw, 760px); transform: translateY(-50%); }
+.auth-shell:not([data-mode='landing']) .auth-background-art { opacity: .22; }
+.auth-shell[data-mode='landing'] .auth-panel {
+  opacity: 0;
+  transform: translateX(48px);
+  pointer-events: none;
+  padding: 0;
+  visibility: hidden;
+}
+.auth-shell:not([data-mode='landing']) .auth-panel { visibility: visible; }
+.auth-shell:not([data-mode='landing']) .auth-landing-panel { border-right: 0; }
+@media (max-width: 767px) {
+  .auth-shell { position: relative; display: block; min-height: 100svh; overflow: hidden; }
+  .auth-landing-panel, .auth-panel { position: absolute; inset: 0; min-height: 100svh; }
+  .auth-shell[data-mode='landing'] .auth-landing-panel { transform: translateX(0); }
+  .auth-shell:not([data-mode='landing']) .auth-landing-panel { transform: translateX(-100%); }
+  .auth-route-illustration { top: 49%; right: -43%; width: min(112vw, 520px); }
+  .auth-shell:not([data-mode='landing']) .auth-background-art { opacity: .14; }
+  .auth-shell[data-mode='landing'] .auth-panel { opacity: 0; transform: translateX(100%); }
+  .auth-shell:not([data-mode='landing']) .auth-panel { opacity: 1; transform: translateX(0); pointer-events: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-shell, .auth-landing-panel, .auth-panel { transition-duration: .01ms; }
+}
 /* Aurora backdrop: soft blurred colour fields that the glass panels pick up */
 body::before { content:''; position:fixed; inset:-10%; z-index:0; pointer-events:none; filter: blur(70px); opacity:.75;
   background:
