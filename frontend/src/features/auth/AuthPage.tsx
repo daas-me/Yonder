@@ -62,7 +62,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
           </svg>
         </div>
         <div className="auth-landing-content relative z-10">
-          <div className="flex items-center"><Logo /></div>
+          <div className="auth-landing-brand flex items-center"><Logo /></div>
           <div className="auth-hero">
             <div className="auth-copy">
               <h1 className="font-display text-5xl leading-[1.02] sm:text-6xl xl:text-7xl">Make room<br /><span className="text-pine">for the moments.</span></h1>
@@ -73,7 +73,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
               </div>}
             </div>
           </div>
-          <div className="soft flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
+          <div className="auth-boarding-pass soft flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
             <div className="flex-1 p-5">
               <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0053</div>
               <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>CGY</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">CEB</span></div>
