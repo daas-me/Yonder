@@ -122,7 +122,7 @@ export function UserAvatar({ user, className = 'h-8 w-8 text-sm', imageUrl }: {
     : <span className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${className}`} style={{ background: user.avatarColor ?? '#ec6a3c' }}>{initials}</span>
 }
 
-export function Modal({ title, onClose, children, wide, animated = false, eyebrow, subtitle, icon }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; animated?: boolean; eyebrow?: string; subtitle?: string; icon?: ReactNode }) {
+export function Modal({ title, onClose, children, wide, animated = false, eyebrow, subtitle, icon, mobilePosition = 'bottom' }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; animated?: boolean; eyebrow?: string; subtitle?: string; icon?: ReactNode; mobilePosition?: 'bottom' | 'center' }) {
   useModalScrollLock()
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -130,8 +130,8 @@ export function Modal({ title, onClose, children, wide, animated = false, eyebro
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:items-center sm:p-4 ${animated ? 'modal-enter-backdrop' : ''}`} onClick={e => { e.stopPropagation(); onClose() }}>
-      <div className={`flex max-h-[90vh] min-w-0 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-50 flex ${mobilePosition === 'center' ? 'items-center' : 'items-end'} justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:items-center sm:p-4 ${animated ? 'modal-enter-backdrop' : ''}`} onClick={e => { e.stopPropagation(); onClose() }}>
+      <div className={`flex max-h-[calc(100dvh-1.5rem)] min-w-0 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface shadow-2xl sm:max-h-[90vh] ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between border-b border-line px-5 py-4 sm:px-6 ${eyebrow || subtitle || icon ? 'bg-gradient-to-r from-moss/70 via-card to-clay/[.04] py-5 sm:py-6' : ''}`}>
           <div className="flex min-w-0 items-center gap-3.5">
             {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-pine/10 text-pine ring-1 ring-pine/10">{icon}</span>}
@@ -163,7 +163,7 @@ export function Confirm({ text, onYes, onNo, title = 'Are you sure?', confirmLab
 
 export function Notice({ text, onClose }: { text: string; onClose: () => void }) {
   return (
-    <Modal title="Yonder update" onClose={onClose} animated>
+    <Modal title="Yonder update" onClose={onClose} animated mobilePosition="center">
       <div className="text-center">
         <span className="trip-confirm-check mx-auto grid h-14 w-14 place-items-center rounded-full bg-pine/10 text-pine" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="trip-confirm-checkmark h-7 w-7"><path d="m5 12 4 4L19 6" /></svg>
