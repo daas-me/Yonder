@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ApiError } from '../../services'
 import { Field, Logo, PasswordInput } from '../../shared'
 
 /* ---------------- Auth ---------------- */
-export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: string, password: string) => Promise<void>; onRegister: (name: string, email: string, password: string) => Promise<void> }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+export default function AuthPage({ onLogin, onRegister, initialMode = 'login', onModeChange }: { onLogin: (email: string, password: string) => Promise<void>; onRegister: (name: string, email: string, password: string) => Promise<void>; initialMode?: 'login' | 'register'; onModeChange?: (mode: 'login' | 'register') => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode)
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
   const [err, setErr] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
+  useEffect(() => setMode(initialMode), [initialMode])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,7 +80,12 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
           {busy && <p role="status" className="sr-only">{mode === 'register' ? 'Creating account...' : 'Signing in...'}</p>}
           <p className="text-center text-sm text-ink/60">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button type="button" className="font-semibold text-pine underline-offset-4 hover:underline" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setErr({}) }}>
+            <button type="button" className="font-semibold text-pine underline-offset-4 hover:underline" onClick={() => {
+              const nextMode = mode === 'login' ? 'register' : 'login'
+              setMode(nextMode)
+              setErr({})
+              onModeChange?.(nextMode)
+            }}>
               {mode === 'login' ? 'Create one' : 'Sign in'}
             </button>
           </p>

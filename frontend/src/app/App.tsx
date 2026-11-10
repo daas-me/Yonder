@@ -10,7 +10,7 @@ import { ApiError, api, assetUrl, fetchCurrencyQuote, readShareToken, type Curre
 import { Confirm, DEFAULT_PREFS, display, load, Logo, Notice, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
-type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
+type AppView = { page: 'trips' | 'login' | 'register' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
 
 function initialTheme(): ThemePref {
   const saved = load<unknown>('yonder.theme', null)
@@ -21,6 +21,8 @@ function initialTheme(): ThemePref {
 
 function initialView(): AppView {
   const path = location.pathname.replace(/\/+$/, '') || '/'
+  if (path === '/login') return { page: 'login' }
+  if (path === '/register') return { page: 'register' }
   if (path === '/account') {
     const tab = new URLSearchParams(location.search).get('tab')
     if (tab === 'profile' || tab === 'defaults' || tab === 'notifications' || tab === 'display' || tab === 'security') {
@@ -52,6 +54,7 @@ function initialView(): AppView {
 }
 
 function viewPath(view: AppView) {
+  if (view.page === 'login' || view.page === 'register') return `/${view.page}`
   if (view.page === 'account') return view.tab ? `/account?tab=${encodeURIComponent(view.tab)}` : '/account'
   if (view.page === 'trip') return `/trips/${encodeURIComponent(view.id)}`
   return '/home'
@@ -217,6 +220,7 @@ export default function App() {
         if (active) {
           setUser({ ...result.currentUser, avatarColor: load<string>(`yonder.avatarColor.${result.currentUser.id}`, '#ec6a3c') })
           setTrips(result.trips)
+          if (location.pathname === '/login' || location.pathname === '/register') navigate({ page: 'trips' })
         }
       })
       .catch(error => {
@@ -343,7 +347,12 @@ export default function App() {
     </div>
   )
   if (authLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Connecting to Yonder…</div>
-  if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage onLogin={signIn} onRegister={register} />{noticeEl}</div>
+  if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage
+    initialMode={view.page === 'register' ? 'register' : 'login'}
+    onModeChange={mode => navigate({ page: mode })}
+    onLogin={signIn}
+    onRegister={register}
+  />{noticeEl}</div>
 
   const current = view.page === 'trip' ? mine.find(t => t.id === view.id) : undefined
   const updateTrip = persistTrip
