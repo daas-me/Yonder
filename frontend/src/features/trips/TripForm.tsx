@@ -103,12 +103,12 @@ export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; def
           </div>
         </div>
       ) : (
-      <form onSubmit={submit} className="space-y-4">
-        <Field label="Trip name" error={err.name}><input className="input" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Summer in Siargao" /></Field>
-        <Field label="Destination" error={err.destination}><input className="input" value={f.destination} onChange={e => setF({ ...f, destination: e.target.value })} placeholder="General Luna, Siargao" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Start date" error={err.start}><input className="input" type="date" value={f.start} onChange={e => setF({ ...f, start: e.target.value })} /></Field>
-          <Field label="End date" error={err.end}><input className="input" type="date" value={f.end} onChange={e => setF({ ...f, end: e.target.value })} /></Field>
+      <form onSubmit={submit} className="trip-form min-w-0 space-y-4">
+        <Field label="Trip name" error={err.name}><input className="input min-w-0" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Summer in Siargao" /></Field>
+        <Field label="Destination" error={err.destination}><input className="input min-w-0" value={f.destination} onChange={e => setF({ ...f, destination: e.target.value })} placeholder="General Luna, Siargao" /></Field>
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Start date" error={err.start}><input className="input min-w-0" type="date" value={f.start} onChange={e => setF({ ...f, start: e.target.value })} /></Field>
+          <Field label="End date" error={err.end}><input className="input min-w-0" type="date" value={f.end} onChange={e => setF({ ...f, end: e.target.value })} /></Field>
         </div>
         <Field label="Tagline (optional)"><input className="input" value={f.tagline} maxLength={80} placeholder="Salt, sun and slow mornings" onChange={e => setF({ ...f, tagline: e.target.value })} /></Field>
         <Field label="Description (optional)" error={err.description}><textarea className="input" rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></Field>

@@ -482,7 +482,7 @@ export default function App() {
         )}
       </header>
       {/* Bottom nav (mobile) */}
-      <nav aria-label="Main navigation" className="no-print fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line2 bg-sand/90 pb-[env(safe-area-inset-bottom)] text-ink shadow-[0_-8px_24px_-20px_rgba(22,32,29,.5)] backdrop-blur-md lg:hidden">
+      <nav aria-label="Main navigation" className="no-print fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line2 bg-sand/90 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] text-ink shadow-[0_-8px_24px_-20px_rgba(22,32,29,.5)] backdrop-blur-md lg:hidden">
         {navItems.map(n => (
           <button key={n.key} onClick={n.on} aria-current={n.active ? 'page' : undefined} className={`group flex flex-col items-center gap-1 py-2.5 text-[11px] transition ${n.active ? 'font-semibold text-pine' : 'text-ink/75 hover:text-ink'}`}>
             <span data-nav-key={n.key} className={`nav-tile relative flex h-8 w-10 items-center justify-center rounded-xl ${n.active ? 'is-active' : ''}`}>

@@ -11,7 +11,11 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
   const [err, setErr] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
-  useEffect(() => setMode(initialMode), [initialMode])
+  useEffect(() => {
+    setMode(initialMode)
+    setF({ name: '', email: '', password: '', confirm: '' })
+    setErr({})
+  }, [initialMode])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,6 +110,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
             <button type="button" className="font-semibold text-pine underline-offset-4 hover:underline" onClick={() => {
               const nextMode = mode === 'login' ? 'register' : 'login'
               setMode(nextMode)
+              setF({ name: '', email: '', password: '', confirm: '' })
               setErr({})
               onModeChange?.(nextMode)
             }}>
