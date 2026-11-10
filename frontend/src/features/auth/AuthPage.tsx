@@ -61,26 +61,28 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
             <circle cx="683" cy="332" r="10" fill="var(--color-clay)" fillOpacity=".24" stroke="var(--color-clay)" strokeOpacity=".6" strokeWidth="2" />
           </svg>
         </div>
-        <div className="relative z-10 flex items-center"><Logo /></div>
-        <div className={`auth-hero relative z-10 ${mode === 'landing' ? 'auth-hero-welcome' : ''}`}>
-          <div className="auth-copy">
-            <h1 className="font-display text-5xl leading-[1.02] sm:text-6xl xl:text-7xl">Make room<br /><span className="text-pine">for the moments.</span></h1>
-            <p className="mt-5 max-w-md text-sm leading-relaxed text-ink/65 sm:text-base">Plan every day, discover places to go, and keep your travel budget on track. Bring your itinerary, trip details, and favorite memories together in one place—from the first idea to the journey home.</p>
-            {mode === 'landing' && <div className="mt-7 flex flex-wrap gap-3">
+        <div className="auth-landing-content relative z-10">
+          <div className="flex items-center"><Logo /></div>
+          <div className="auth-hero">
+            <div className="auth-copy">
+              <h1 className="font-display text-5xl leading-[1.02] sm:text-6xl xl:text-7xl">Make room<br /><span className="text-pine">for the moments.</span></h1>
+              <p className="mt-5 max-w-md text-sm leading-relaxed text-ink/65 sm:text-base">Plan every day, discover places to go, and keep your travel budget on track. Bring your itinerary, trip details, and favorite memories together in one place—from the first idea to the journey home.</p>
+              {mode === 'landing' && <div className="mt-7 flex flex-wrap gap-3">
                 <button type="button" className="btn btn-primary px-6 py-3" onClick={() => onModeChange?.('login')}>Sign in</button>
                 <button type="button" className="btn btn-ghost px-6 py-3 ring-1 ring-line2" onClick={() => onModeChange?.('register')}>Create an account</button>
               </div>}
+            </div>
           </div>
-        </div>
-        <div className="soft relative z-10 flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
-          <div className="flex-1 p-5">
-            <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0053</div>
-            <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>CGY</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">CEB</span></div>
-            <div className="mono mt-4 grid grid-cols-3 text-[10px] uppercase text-ink/45"><span>Depart<br /><b className="text-sm font-normal text-ink">17 DEC</b></span><span>Days<br /><b className="text-sm font-normal text-ink">08</b></span><span>Budget<br /><b className="text-sm font-normal text-ink">₱13,000</b></span></div>
-          </div>
-          <div className="flex w-24 flex-col justify-between border-l border-dashed border-line2 p-4">
-            <span className="mono text-[10px] uppercase text-ink/45">Seat 1A</span>
-            <div className="barcode h-8 w-full" />
+          <div className="soft flex max-w-md rotate-[-1.5deg] overflow-hidden rounded-2xl border border-line bg-sand">
+            <div className="flex-1 p-5">
+              <div className="mono text-[10px] uppercase tracking-wider text-ink/45">Boarding pass · YND-0053</div>
+              <div className="mt-2 flex items-center gap-3 font-display text-3xl"><span>CGY</span><span className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--color-line2)_0_6px,transparent_6px_10px)]" /><span className="text-pine">CEB</span></div>
+              <div className="mono mt-4 grid grid-cols-3 text-[10px] uppercase text-ink/45"><span>Depart<br /><b className="text-sm font-normal text-ink">17 DEC</b></span><span>Days<br /><b className="text-sm font-normal text-ink">08</b></span><span>Budget<br /><b className="text-sm font-normal text-ink">₱13,000</b></span></div>
+            </div>
+            <div className="flex w-24 flex-col justify-between border-l border-dashed border-line2 p-4">
+              <span className="mono text-[10px] uppercase text-ink/45">Seat 1A</span>
+              <div className="barcode h-8 w-full" />
+            </div>
           </div>
         </div>
       </section>
@@ -89,7 +91,7 @@ export default function AuthPage({ onLogin, onRegister, initialMode = 'landing',
           <div className="mb-8 lg:hidden"><Logo /></div>
           <h2 className="font-display text-3xl">{mode === 'login' ? 'Welcome back' : 'Start your journey'}</h2>
           <p className="pb-2 text-sm text-ink/60">{mode === 'login' ? 'Sign in to your travel plans.' : 'Create an account to plan trips.'}</p>
-          {mode === 'register' && <Field label="Full name" error={err.name}><input className="input" value={f.name} onChange={set('name')} /></Field>}
+          {mode === 'register' && <Field label="Full name" error={err.name}><input className="input" value={f.name} onChange={set('name')} placeholder="Juan Dela Cruz" autoComplete="name" /></Field>}
           <Field label="Email" error={err.email}><input className="input" type="email" value={f.email} onChange={set('email')} placeholder="you@example.com" /></Field>
           <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
           {mode === 'register' && <p className="-mt-2 text-xs leading-relaxed text-ink/55">At least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>}
