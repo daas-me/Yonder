@@ -70,7 +70,11 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
           <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 6 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
           {mode === 'register' && <Field label="Confirm password" error={err.confirm}><PasswordInput value={f.confirm} onChange={set('confirm')} placeholder="Re-enter your password" autoComplete="new-password" /></Field>}
           {err.form && <p role="alert" className="rounded-xl border border-clay/20 bg-clay/10 px-3 py-2.5 text-sm leading-relaxed text-clay">{err.form}</p>}
-          <button className="btn btn-primary w-full py-3" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
+          <button className="btn btn-primary inline-flex w-full items-center justify-center gap-2 py-3" disabled={busy} aria-busy={busy}>
+            {busy && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none" />}
+            {busy ? mode === 'register' ? 'Creating account…' : 'Signing in…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          </button>
+          {busy && mode === 'register' && <p role="status" className="text-center text-sm text-ink/60">Creating your account. This may take a few seconds…</p>}
           <p className="text-center text-sm text-ink/60">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             <button type="button" className="font-semibold text-pine underline-offset-4 hover:underline" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setErr({}) }}>
