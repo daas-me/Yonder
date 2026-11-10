@@ -83,6 +83,7 @@ export function TripForm({ trip, defaults, onSave, onClose }: { trip?: Trip; def
       onClose={onClose}
       wide
       animated
+      mobilePosition="center"
     >
       {pendingChanges && trip ? (
         <div key="confirm-trip-changes" className="trip-confirm-content space-y-5">

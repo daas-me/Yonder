@@ -21,6 +21,9 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
+import org.springframework.session.web.http.CookieSerializer;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,6 +32,7 @@ import com.yonder.app.auth.repository.UserRepository;
 
 @Configuration
 @EnableWebSecurity
+@EnableJdbcHttpSession(tableName = "yonder.spring_session", maxInactiveIntervalInSeconds = 2592000)
 public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -87,6 +91,18 @@ public class SecurityConfig {
     @Bean
     CookieCsrfTokenRepository csrfTokenRepository() {
         return CookieCsrfTokenRepository.withHttpOnlyFalse();
+    }
+
+    @Bean
+    CookieSerializer cookieSerializer(
+            @Value("${server.servlet.session.cookie.max-age:30d}") java.time.Duration maxAge,
+            @Value("${server.servlet.session.cookie.same-site:lax}") String sameSite,
+            @Value("${server.servlet.session.cookie.secure:false}") boolean secure) {
+        DefaultCookieSerializer serializer = new DefaultCookieSerializer();
+        serializer.setCookieMaxAge((int) maxAge.getSeconds());
+        serializer.setSameSite(sameSite);
+        serializer.setUseSecureCookie(secure);
+        return serializer;
     }
 
     @Bean

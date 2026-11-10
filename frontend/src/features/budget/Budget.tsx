@@ -375,9 +375,9 @@ export function BudgetModal({ trip, readOnly, onUpdate, onClose }: { trip: Trip;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden modal-surface rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line2 bg-sand/70 px-6 py-4 shadow-[0_2px_8px_-6px_rgba(22,32,29,0.28)]">
-          <div><h3 id={titleId} className="font-display text-2xl font-semibold">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in {currencyCode()}</p></div>
-          <div className="flex gap-2"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost px-3" aria-label="Close" onClick={onClose}>✕</button></div>
+        <div className="z-10 flex shrink-0 flex-col items-stretch gap-3 border-b border-line2 bg-sand/70 px-4 py-3 shadow-[0_2px_8px_-6px_rgba(22,32,29,0.28)] sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <div className="min-w-0"><h3 id={titleId} className="font-display text-xl font-semibold sm:text-2xl">Budget breakdown</h3><p className="text-sm text-ink/55">{trip.name} · {fmt(trip.start)} – {fmt(trip.end, { month: 'short', day: 'numeric', year: 'numeric' })} · amounts in {currencyCode()}</p></div>
+          <div className="flex items-center justify-between gap-2 sm:justify-end"><button className="btn btn-ghost ring-1 ring-line" onClick={csv}>Export CSV</button><button className="btn btn-ghost flex h-11 w-11 shrink-0 items-center justify-center rounded-lg p-0 text-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine sm:h-9 sm:w-9 sm:text-base" aria-label="Close budget breakdown" title="Close" onClick={onClose}>✕</button></div>
         </div>
         <div className="modal-scroll min-h-0 flex-1 space-y-8 overflow-auto p-6">
         <div className={`grid gap-4 ${trip.groupTrip ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>

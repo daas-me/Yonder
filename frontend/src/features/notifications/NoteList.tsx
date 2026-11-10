@@ -14,7 +14,7 @@ export default function NoteList({ notes, onOpen, onDismiss }: { notes: Note[]; 
               <span className="block truncate text-xs text-ink/55">{note.body}</span>
             </span>
           </button>
-          {onDismiss && <button type="button" aria-label={`Dismiss ${note.title}`} title="Dismiss" onClick={() => onDismiss(note)} className="absolute right-2 top-2.5 flex h-6 w-6 items-center justify-center rounded-md text-ink/35 opacity-0 transition hover:bg-ink/5 hover:text-ink group-hover:opacity-100 focus:opacity-100">×</button>}
+          {onDismiss && <button type="button" aria-label={`Dismiss ${note.title}`} title="Dismiss" onClick={() => onDismiss(note)} className="absolute right-2 top-2.5 flex h-6 w-6 items-center justify-center rounded-md text-ink/35 opacity-100 transition hover:bg-ink/5 hover:text-ink sm:opacity-0 group-hover:opacity-100 focus:opacity-100">×</button>}
         </li>
       ))}
     </ul>
