@@ -15,11 +15,13 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
     const er: Record<string, string> = {}
     const email = f.email.trim().toLowerCase()
     if (!/^\S+@\S+\.\S+$/.test(email)) er.email = 'Enter a valid email address.'
-    if (f.password.length < 6) er.password = 'Password must be at least 6 characters.'
     if (mode === 'register') {
       if (!f.name.trim()) er.name = 'Your name is required.'
+      if (f.password.length < 8 || !/[a-z]/.test(f.password) || !/[A-Z]/.test(f.password) || !/\d/.test(f.password) || !/[^A-Za-z0-9]/.test(f.password)) {
+        er.password = 'Use at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special character.'
+      }
       if (f.password !== f.confirm) er.confirm = 'Passwords do not match.'
-    }
+    } else if (f.password.length < 6) er.password = 'Password must be at least 6 characters.'
     setErr(er)
     if (Object.keys(er).length) return
     setBusy(true)
@@ -67,14 +69,14 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (email: str
           <p className="pb-2 text-sm text-ink/60">{mode === 'login' ? 'Sign in to your travel plans.' : 'Create an account to plan trips.'}</p>
           {mode === 'register' && <Field label="Full name" error={err.name}><input className="input" value={f.name} onChange={set('name')} /></Field>}
           <Field label="Email" error={err.email}><input className="input" type="email" value={f.email} onChange={set('email')} placeholder="you@example.com" /></Field>
-          <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 6 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
+          <Field label="Password" error={err.password}><PasswordInput value={f.password} onChange={set('password')} placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></Field>
+          {mode === 'register' && <p className="-mt-2 text-xs leading-relaxed text-ink/55">At least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>}
           {mode === 'register' && <Field label="Confirm password" error={err.confirm}><PasswordInput value={f.confirm} onChange={set('confirm')} placeholder="Re-enter your password" autoComplete="new-password" /></Field>}
           {err.form && <p role="alert" className="rounded-xl border border-clay/20 bg-clay/10 px-3 py-2.5 text-sm leading-relaxed text-clay">{err.form}</p>}
-          <button className="btn btn-primary inline-flex w-full items-center justify-center gap-2 py-3" disabled={busy} aria-busy={busy}>
-            {busy && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none" />}
-            {busy ? mode === 'register' ? 'Creating account…' : 'Signing in…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          <button className="btn btn-primary inline-flex w-full items-center justify-center py-3" disabled={busy} aria-busy={busy}>
+            {busy ? mode === 'register' ? 'Creating account...' : 'Signing in...' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
-          {busy && mode === 'register' && <p role="status" className="text-center text-sm text-ink/60">Creating your account. This may take a few seconds…</p>}
+          {busy && <p role="status" className="sr-only">{mode === 'register' ? 'Creating account...' : 'Signing in...'}</p>}
           <p className="text-center text-sm text-ink/60">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             <button type="button" className="font-semibold text-pine underline-offset-4 hover:underline" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setErr({}) }}>

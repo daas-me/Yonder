@@ -7,17 +7,17 @@ import { WeatherIcon } from '../weather'
 type Props = {
   trip: Trip; days: { date: string; acts: Activity[] }[]; weather: Record<string, Weather>; readOnly?: boolean; memCount: number
   onOpenJournal: (id: 'trip' | string) => void; onAttach: (a: Activity, f?: File) => void; onLocate: (a: Activity) => Promise<boolean>
-  onPatch: (id: string, p: Partial<Activity>) => void; toast: (m: string) => void
+  onPatch: (id: string, p: Partial<Activity>) => void; notify: (m: string) => void
 }
 
 /* Corkboard view: pinned postcards per day; clicking a card opens its memories journal */
-export default function Tripboard({ trip, days, weather, readOnly, memCount, onOpenJournal, onAttach, onLocate, onPatch, toast }: Props) {
+export default function Tripboard({ trip, days, weather, readOnly, memCount, onOpenJournal, onAttach, onLocate, onPatch, notify }: Props) {
   return (
             <div className="cork rounded-3xl p-5 sm:p-8">
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="max-w-md font-hand text-2xl leading-tight text-white drop-shadow">Tap a postcard to open its journal: add photos and stories while you travel.</p>
                 <button className="no-print rounded-lg bg-[#fffdf6] px-4 py-2 text-sm font-semibold text-[#17675b] shadow-md hover:bg-white disabled:opacity-50" disabled={!memCount}
-                  onClick={() => downloadMemories(trip).catch(() => toast('Could not build the zip'))}>Download all memories{memCount ? ` (${memCount})` : ''}</button>
+                  onClick={() => downloadMemories(trip).catch(() => notify('Could not build the zip'))}>Download all memories{memCount ? ` (${memCount})` : ''}</button>
               </div>
               {(
                 <div role="button" tabIndex={0} onClick={() => onOpenJournal('trip')} className="relative mx-auto mb-10 w-64 -rotate-1 cursor-pointer bg-[#fffdf6] p-3 pb-4 text-[#2b2b2b] shadow-xl transition hover:rotate-0 hover:scale-[1.03]">
@@ -54,7 +54,7 @@ export default function Tripboard({ trip, days, weather, readOnly, memCount, onO
                             {!readOnly && (
                               <div onClick={e => e.stopPropagation()} className="no-print mt-3 flex flex-wrap gap-1 border-t border-dashed border-black/15 pt-2 text-xs">
                                 <label className="cursor-pointer rounded px-2 py-1 font-semibold text-[#17675b] hover:bg-black/5">{a.image ? 'Change photo' : 'Attach photo'}<input type="file" accept="image/*" className="hidden" onChange={e => onAttach(a, e.target.files?.[0])} /></label>
-                                {a.lat == null && <button className="rounded px-2 py-1 font-semibold text-[#17675b] hover:bg-black/5" onClick={async () => toast((await onLocate(a)) ? 'Map snapshot added' : 'Location not found')}>Map snapshot</button>}
+                                {a.lat == null && <button className="rounded px-2 py-1 font-semibold text-[#17675b] hover:bg-black/5" onClick={async () => notify((await onLocate(a)) ? 'Map snapshot added' : 'Location not found')}>Map snapshot</button>}
                                 {a.image && <button className="rounded px-2 py-1 text-[#ec6a3c] hover:bg-black/5" onClick={() => onPatch(a.id, { image: undefined })}>Remove photo</button>}
                                 {a.lat != null && <button className="rounded px-2 py-1 text-[#ec6a3c] hover:bg-black/5" onClick={() => onPatch(a.id, { lat: undefined, lon: undefined })}>Remove map</button>}
                               </div>

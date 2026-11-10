@@ -7,7 +7,7 @@ import { delPhotos, photoIds } from '../features/memories'
 import { NotificationBell } from '../features/notifications'
 import { TripForm, TripList } from '../features/trips'
 import { ApiError, api, assetUrl, fetchCurrencyQuote, readShareToken, type CurrencyQuote } from '../services'
-import { Confirm, DEFAULT_PREFS, display, load, Logo, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
+import { Confirm, DEFAULT_PREFS, display, load, Logo, Notice, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
 type AppView = { page: 'trips' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
@@ -167,7 +167,7 @@ export default function App() {
     window.addEventListener('hashchange', loadShared)
     return () => { active = false; window.removeEventListener('hashchange', loadShared) }
   }, [])
-  const [msg, setMsg] = useState('')
+  const [notice, setNotice] = useState('')
   const [menu, setMenu] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [side, setSide] = useState<'full' | 'rail' | 'hidden'>(() => load('yonder.sidebar', 'full'))
@@ -185,14 +185,12 @@ export default function App() {
       })
       .catch(error => {
         if (active && (!(error instanceof ApiError) || error.status !== 401)) {
-          setMsg(error instanceof Error ? error.message : 'Could not connect to Yonder API')
+          setNotice(error instanceof Error ? error.message : 'Could not connect to Yonder API')
         }
       })
       .finally(() => { if (active) setAuthLoading(false) })
     return () => { active = false }
   }, [])
-  useEffect(() => { if (msg) { const t = setTimeout(() => setMsg(''), 2500); return () => clearTimeout(t) } }, [msg])
-
   const signIn = async (email: string, password: string) => {
     const signedInUser = await api.login(email, password)
     const userTrips = await api.listTrips()
@@ -220,11 +218,11 @@ export default function App() {
         setTrips(currentTrips => currentTrips.map(current => current.id === saved.id ? saved : current))
         return true
       } catch (error) {
-        setMsg(error instanceof Error ? `Could not save trip: ${error.message}` : 'Could not save trip')
+        setNotice(error instanceof Error ? `Could not save trip: ${error.message}` : 'Could not save trip')
         try {
           setTrips(await api.listTrips())
         } catch (reloadError) {
-          setMsg(reloadError instanceof Error ? `Save failed and trips could not be reloaded: ${reloadError.message}` : 'Save failed and trips could not be reloaded')
+          setNotice(reloadError instanceof Error ? `Save failed and trips could not be reloaded: ${reloadError.message}` : 'Save failed and trips could not be reloaded')
         }
         return false
       }
@@ -248,7 +246,7 @@ export default function App() {
       await api.logout()
       setUser(null); setTrips([]); setMenu(false); setConfirmSignOut(false)
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : 'Could not sign out')
+      setNotice(error instanceof Error ? error.message : 'Could not sign out')
     }
   }
   const themeBtn = (
@@ -264,7 +262,7 @@ export default function App() {
     onDismissAll={() => dismissNotes(notes.map((note: Note) => note.id))}
     onSettings={() => setView({ page: 'account', tab: 'notifications' })}
   />
-  const toastEl = msg && <div className="no-print fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm text-sand shadow-lg">{msg}</div>
+  const noticeEl = notice && <Notice text={notice} onClose={() => setNotice('')} />
   const exitShare = () => { history.replaceState(null, '', location.pathname); setShared(null); setShareError(''); setShareLoading(false) }
   if (shareLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Opening shared itinerary…</div>
   if (shareError) return (
@@ -291,19 +289,19 @@ export default function App() {
                 activities: shared.activities.map(activity => ({ ...activity, id: uid(), image: undefined, memories: undefined })),
               }
               void createTrip(copy)
-                .then(t => { exitShare(); setView({ page: 'trip', id: t.id }); setMsg('Saved to your trips') })
-                .catch(error => setMsg(error instanceof Error ? error.message : 'Could not save trip'))
+                .then(t => { exitShare(); setView({ page: 'trip', id: t.id }); setNotice('Saved to your trips') })
+                .catch(error => setNotice(error instanceof Error ? error.message : 'Could not save trip'))
             }}>Save to my trips</button>}
             <button className="btn btn-primary" onClick={exitShare}>{user ? 'Back to Yonder' : 'Plan your own'}</button>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-5 py-10"><TripView trip={shared} readOnly onBack={exitShare} onUpdate={() => {}} onDelete={() => {}} onDuplicate={() => {}} toast={setMsg} /></main>
-      {toastEl}
+      <main className="mx-auto max-w-6xl px-5 py-10"><TripView trip={shared} readOnly onBack={exitShare} onUpdate={() => {}} onDelete={() => {}} onDuplicate={() => {}} notify={setNotice} /></main>
+      {noticeEl}
     </div>
   )
   if (authLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">Connecting to Yonder…</div>
-  if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage onLogin={signIn} onRegister={register} />{toastEl}</div>
+  if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage onLogin={signIn} onRegister={register} />{noticeEl}</div>
 
   const current = view.page === 'trip' ? mine.find(t => t.id === view.id) : undefined
   const updateTrip = persistTrip
@@ -438,18 +436,18 @@ export default function App() {
         ))}
       </nav>
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-8 lg:pb-12 lg:pt-10">
-        {view.page === 'trips' && <TripList trips={mine} user={user} onOpen={id => setView({ page: 'trip', id })} onNew={() => setNewTrip(true)} onImport={() => setImporting(true)} onCover={(id, p) => { const trip = mine.find(item => item.id === id); if (trip) { persistTrip({ ...trip, ...p }); setMsg('Cover updated') } }} />}
+        {view.page === 'trips' && <TripList trips={mine} user={user} onOpen={id => setView({ page: 'trip', id })} onNew={() => setNewTrip(true)} onImport={() => setImporting(true)} onCover={(id, p) => { const trip = mine.find(item => item.id === id); if (trip) { persistTrip({ ...trip, ...p }); setNotice('Cover updated') } }} />}
         {view.page === 'trip' && (current ? (
-          <TripView trip={current} fresh={view.page === 'trip' && view.fresh} onBack={() => setView({ page: 'trips' })} onUpdate={updateTrip} toast={setMsg} key={current.id}
+          <TripView trip={current} fresh={view.page === 'trip' && view.fresh} onBack={() => setView({ page: 'trips' })} onUpdate={updateTrip} notify={setNotice} key={current.id}
             onDuplicate={t => {
               void createTrip({ ...t, id: uid(), ownerId: user.id })
-                .then(c => { setView({ page: 'trip', id: c.id }); setMsg('Template copied') })
-                .catch(error => setMsg(error instanceof Error ? error.message : 'Could not copy trip'))
+                .then(c => { setView({ page: 'trip', id: c.id }); setNotice('Template copied') })
+                .catch(error => setNotice(error instanceof Error ? error.message : 'Could not copy trip'))
             }}
             onDelete={() => {
               void api.deleteTrip(current.id).then(() => {
-                delPhotos(photoIds(current)); setTrips(ts => ts.filter(t => t.id !== current.id)); setView({ page: 'trips' }); setMsg('Trip deleted')
-              }).catch(error => setMsg(error instanceof Error ? error.message : 'Could not delete trip'))
+                delPhotos(photoIds(current)); setTrips(ts => ts.filter(t => t.id !== current.id)); setView({ page: 'trips' }); setNotice('Trip deleted')
+              }).catch(error => setNotice(error instanceof Error ? error.message : 'Could not delete trip'))
             }} />
         ) : (
           <div className="py-20 text-center"><div className="text-sm text-clay">Error 404</div><h2 className="mt-1 font-display text-3xl">Trip not found</h2><button className="btn btn-primary mt-6" onClick={() => setView({ page: 'trips' })}>Back to trips</button></div>
@@ -471,7 +469,7 @@ export default function App() {
             setUser(current => current ? { ...current, avatarColor: color } : current)
           }}
           onSignOut={() => setConfirmSignOut(true)}
-          toast={setMsg}
+          notify={setNotice}
           onDeleteAccount={async () => {
             await api.deleteAccount()
             delPhotos(mine.flatMap(photoIds))
@@ -480,13 +478,13 @@ export default function App() {
       </main>
       {newTrip && <TripForm defaults={prefs} onClose={() => setNewTrip(false)} onSave={v => {
         const t: Trip = { ...v, id: uid(), ownerId: user.id, activities: [], checklist: packingList() }
-        void createTrip(t).then(saved => { setNewTrip(false); setView({ page: 'trip', id: saved.id, fresh: true }); setMsg('Trip created') })
-          .catch(error => setMsg(error instanceof Error ? error.message : 'Could not create trip'))
+        void createTrip(t).then(saved => { setNewTrip(false); setView({ page: 'trip', id: saved.id, fresh: true }); setNotice('Trip created') })
+          .catch(error => setNotice(error instanceof Error ? error.message : 'Could not create trip'))
       }} />}
       {importing && <ImportModal onClose={() => setImporting(false)} onCreate={v => {
         const t: Trip = { ...v, id: uid(), ownerId: user.id, checklist: v.checklist?.length ? v.checklist : packingList() }
-        void createTrip(t).then(saved => { setImporting(false); setView({ page: 'trip', id: saved.id, fresh: true }); setMsg('Itinerary imported') })
-          .catch(error => setMsg(error instanceof Error ? error.message : 'Could not import itinerary'))
+        void createTrip(t).then(saved => { setImporting(false); setView({ page: 'trip', id: saved.id, fresh: true }); setNotice('Itinerary imported') })
+          .catch(error => setNotice(error instanceof Error ? error.message : 'Could not import itinerary'))
       }} />}
       {confirmSignOut && <Confirm
         title="Sign out of Yonder?"
@@ -499,7 +497,7 @@ export default function App() {
         onNo={() => setConfirmSignOut(false)}
         onYes={() => void signOut()}
       />}
-      {toastEl}
+      {noticeEl}
     </div>
   )
 }

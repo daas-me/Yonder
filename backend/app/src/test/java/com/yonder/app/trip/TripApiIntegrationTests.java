@@ -231,6 +231,25 @@ class TripApiIntegrationTests {
     }
 
     @Test
+    void registrationRejectsInvalidEmailsAndWeakPasswords() throws Exception {
+        mvc.perform(post("/api/auth/register").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"New Traveler","email":"invalid-email","password":"SecurePass1!"}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        for (String password : new String[] { "short1!", "alllowercase1!", "ALLUPPERCASE1!", "NoNumber!!", "NoSpecial123" }) {
+            mvc.perform(post("/api/auth/register").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"name":"New Traveler","email":"new-traveler@yonder.ph","password":"%s"}
+                                    """.formatted(password)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
     void unknownAccountsAndIncorrectPasswordsReturnTheSameLoginError() throws Exception {
         String unknownAccount = """
                 {"email":"missing@yonder.ph","password":"testpass123"}
