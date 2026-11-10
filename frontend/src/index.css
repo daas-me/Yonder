@@ -44,16 +44,51 @@ body { background: var(--color-sand); color: var(--color-ink); font-family: var(
 .auth-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  overflow-x: clip;
+  height: 100svh;
+  min-height: 100svh;
+  overflow-y: hidden;
   transition: grid-template-columns 1s cubic-bezier(.65,0,.35,1);
 }
 .auth-shell[data-mode='landing'] {
   grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
-  height: 100svh;
-  min-height: 100svh;
   overflow: hidden;
 }
 .auth-landing-panel, .auth-panel { transition: opacity .6s ease, transform 1s cubic-bezier(.65,0,.35,1); }
-.auth-hero-welcome .auth-copy { max-width: 760px; margin-inline: auto; }
+.auth-panel { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.auth-landing-content .auth-copy {
+  max-width: 760px;
+  margin-inline: auto;
+  transition: max-width 1s cubic-bezier(.65,0,.35,1);
+}
+.auth-landing-content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  width: 100vw;
+  min-height: calc(100svh - 3rem);
+  margin-left: -1.5rem;
+}
+.auth-landing-content > .soft { position: relative; top: 1.8rem; }
+.auth-landing-content .auth-hero {
+  position: absolute;
+  top: calc(50% - 4.25rem);
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
+  transition: transform 1s cubic-bezier(.65,0,.35,1);
+}
+.auth-shell:not([data-mode='landing']) .auth-landing-content .auth-hero { transform: translate(-23.8vw, -50%); }
+.auth-shell:not([data-mode='landing']) .auth-landing-content .auth-copy { max-width: min(760px, calc(52.38vw - 5rem)); }
+@media (min-width: 640px) {
+  .auth-landing-content { min-height: calc(100svh - 5rem); margin-left: -2.5rem; }
+}
+@media (min-width: 1024px) {
+  .auth-landing-content { min-height: calc(100svh - 6rem); margin-left: -3rem; }
+  .auth-shell:not([data-mode='landing']) .auth-landing-content .auth-copy { max-width: min(760px, calc(52.38vw - 6rem)); }
+}
 .auth-background-art { color: var(--color-pine); opacity: .75; pointer-events: none; }
 .dark .auth-background-art { opacity: .45; }
 .auth-route-illustration { top: 52%; right: -8%; width: min(60vw, 760px); transform: translateY(-50%); }
@@ -68,8 +103,13 @@ body { background: var(--color-sand); color: var(--color-ink); font-family: var(
 .auth-shell:not([data-mode='landing']) .auth-panel { visibility: visible; }
 .auth-shell:not([data-mode='landing']) .auth-landing-panel { border-right: 0; }
 @media (max-width: 767px) {
-  .auth-shell { position: relative; display: block; min-height: 100svh; overflow: hidden; }
+  .auth-shell { position: relative; display: block; }
   .auth-landing-panel, .auth-panel { position: absolute; inset: 0; min-height: 100svh; }
+  .auth-landing-content { width: 100%; min-height: calc(100svh - 3rem); margin-left: 0; }
+  .auth-landing-content > .soft { top: 0; }
+  .auth-landing-content .auth-hero { top: 50%; transform: translateY(-50%) !important; }
+  .auth-shell:not([data-mode='landing']) .auth-landing-content .auth-copy { max-width: 760px; }
+  .auth-landing-content .auth-copy p { max-width: 28rem; }
   .auth-shell[data-mode='landing'] .auth-landing-panel { transform: translateX(0); }
   .auth-shell:not([data-mode='landing']) .auth-landing-panel { transform: translateX(-100%); }
   .auth-route-illustration { top: 49%; right: -43%; width: min(112vw, 520px); }
@@ -78,7 +118,7 @@ body { background: var(--color-sand); color: var(--color-ink); font-family: var(
   .auth-shell:not([data-mode='landing']) .auth-panel { opacity: 1; transform: translateX(0); pointer-events: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .auth-shell, .auth-landing-panel, .auth-panel { transition-duration: .01ms; }
+  .auth-shell, .auth-landing-panel, .auth-panel, .auth-landing-content .auth-copy, .auth-landing-content .auth-hero { transition-duration: .01ms; }
 }
 /* Aurora backdrop: soft blurred colour fields that the glass panels pick up */
 body::before { content:''; position:fixed; inset:-10%; z-index:0; pointer-events:none; filter: blur(70px); opacity:.75;

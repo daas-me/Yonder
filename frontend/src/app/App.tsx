@@ -79,7 +79,11 @@ export default function App() {
   const pendingProtectedView = useRef<AppView | null>(null)
   const navigate = (next: AppView) => {
     const path = viewPath(next)
-    if (`${location.pathname}${location.search}` !== path) history.pushState(null, '', path)
+    if (`${location.pathname}${location.search}` !== path) {
+      const switchingAuthMode = (view.page === 'login' || view.page === 'register')
+        && (next.page === 'login' || next.page === 'register')
+      history[switchingAuthMode ? 'replaceState' : 'pushState'](null, '', path)
+    }
     setView(next)
   }
   useEffect(() => {
