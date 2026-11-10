@@ -130,8 +130,8 @@ export function Modal({ title, onClose, children, wide, animated = false, eyebro
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center ${animated ? 'modal-enter-backdrop' : ''}`} onClick={e => { e.stopPropagation(); onClose() }}>
-      <div className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:items-center sm:p-4 ${animated ? 'modal-enter-backdrop' : ''}`} onClick={e => { e.stopPropagation(); onClose() }}>
+      <div className={`flex max-h-[90vh] min-w-0 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-2xl modal-surface shadow-2xl ${animated ? 'modal-enter-panel' : ''}`} onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between border-b border-line px-5 py-4 sm:px-6 ${eyebrow || subtitle || icon ? 'bg-gradient-to-r from-moss/70 via-card to-clay/[.04] py-5 sm:py-6' : ''}`}>
           <div className="flex min-w-0 items-center gap-3.5">
             {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-pine/10 text-pine ring-1 ring-pine/10">{icon}</span>}
@@ -143,7 +143,7 @@ export function Modal({ title, onClose, children, wide, animated = false, eyebro
           </div>
           <button className="ml-3 shrink-0 rounded-lg p-2 text-ink/45 transition hover:bg-ink/5 hover:text-ink" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className="modal-scroll overflow-auto p-6">{children}</div>
+        <div className="modal-scroll min-h-0 min-w-0 overflow-auto p-4 sm:p-6">{children}</div>
       </div>
     </div>
   )
