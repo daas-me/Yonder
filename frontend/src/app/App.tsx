@@ -10,7 +10,7 @@ import { api, assetUrl, fetchCurrencyQuote, readShareToken, type CurrencyQuote }
 import { Confirm, DEFAULT_PREFS, display, load, Logo, Notice, notificationsFor, prefsOf, type CurrencyCode, type Note, type Prefs, type ThemePref, type Trip, uid, type User } from '../shared'
 
 /* ---------------- App ---------------- */
-type AppView = { page: 'trips' | 'login' | 'register' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
+type AppView = { page: 'landing' | 'trips' | 'login' | 'register' } | { page: 'trip'; id: string; fresh?: boolean } | { page: 'account'; tab?: AccountTab }
 
 function initialTheme(): ThemePref {
   const saved = load<unknown>('yonder.theme', null)
@@ -21,6 +21,7 @@ function initialTheme(): ThemePref {
 
 function initialView(): AppView {
   const path = location.pathname.replace(/\/+$/, '') || '/'
+  if (path === '/') return { page: 'landing' }
   if (path === '/login') return { page: 'login' }
   if (path === '/register') return { page: 'register' }
   if (path === '/account') {
@@ -54,6 +55,7 @@ function initialView(): AppView {
 }
 
 function viewPath(view: AppView) {
+  if (view.page === 'landing') return '/'
   if (view.page === 'login' || view.page === 'register') return `/${view.page}`
   if (view.page === 'account') return view.tab ? `/account?tab=${encodeURIComponent(view.tab)}` : '/account'
   if (view.page === 'trip') return `/trips/${encodeURIComponent(view.id)}`
@@ -213,7 +215,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('yonder.sidebar', JSON.stringify(side)), [side])
 
   useEffect(() => {
-    if (view.page === 'login' || view.page === 'register' || readShareToken()) return
+    if (view.page === 'landing' || view.page === 'login' || view.page === 'register' || readShareToken()) return
     let active = true
     api.currentUser()
       .then(async currentUser => ({ currentUser, trips: await api.listTrips() }))
@@ -230,7 +232,7 @@ export default function App() {
     return () => { active = false }
   }, [])
   useEffect(() => {
-    if (user || readShareToken() || view.page === 'login' || view.page === 'register') return
+    if (user || readShareToken() || view.page === 'landing' || view.page === 'login' || view.page === 'register') return
     pendingProtectedView.current = view
     history.replaceState(null, '', '/login')
     setView({ page: 'login' })
@@ -351,7 +353,7 @@ export default function App() {
     </div>
   )
   if (!user) return <div className="relative"><div className="absolute right-4 top-4 z-10">{themeBtn}</div><AuthPage
-    initialMode={view.page === 'register' ? 'register' : 'login'}
+    initialMode={view.page === 'landing' ? 'landing' : view.page === 'register' ? 'register' : 'login'}
     onModeChange={mode => navigate({ page: mode })}
     onLogin={signIn}
     onRegister={register}
