@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { type Activity, type Cat, catOf, CATS, currencyCode, dayList, type Extra, formatAmount, fmt, fmtTime, fromBaseCurrency, php, phpCompact, planned as plannedCost, PlusIcon, sortActs, THEMES, toBaseCurrency, type Trip, uid, useModalScrollLock } from '../../shared'
 import { incompleteOwnOrderCount, travelerCostBreakdown } from '../../shared'
+import { SelectMenu } from '../account/controls'
 
 const r2 = (v: string) => { const n = Math.round(Math.max(0, Number(v) || 0) * 100) / 100; return Math.min(n, 9999999999.99) }
 export function budgetStats(t: Trip) {
@@ -226,22 +227,28 @@ export function ExtrasEditor({ items, onChange, readOnly, dense }: { items: Extr
     <div>
       {items.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[520px] table-fixed text-sm">
             <thead><tr className="text-left text-xs text-ink/55">
-              <th className="px-2 py-1 font-medium">Item</th><th className="px-2 py-1 font-medium">Type</th>
-              <th className="px-2 py-1 text-right font-medium">Budgeted</th><th className="px-2 py-1 text-right font-medium">Actual</th><th className="w-8" />
+              <th className="px-2 py-1 font-medium">Item</th><th className="w-28 px-2 py-1 font-medium">Type</th>
+              <th className="w-28 px-2 py-1 text-right font-medium">Budgeted</th><th className="w-28 px-2 py-1 text-right font-medium">Actual</th><th className="w-8" />
             </tr></thead>
             <tbody>
               {items.map(x => (
                 <tr key={x.id} className="border-t border-line">
                   <td className="px-0 py-1"><input className={cell} readOnly={readOnly} value={x.label} placeholder="e.g. Tips, SIM card, travel insurance" onChange={e => set(x.id, { label: e.target.value.slice(0, 120) })} /></td>
-                  <td className="px-0 py-1 w-32">
-                    <select className={cell} disabled={readOnly} value={x.category} onChange={e => set(x.id, { category: e.target.value as Cat })}>
-                      {(Object.keys(CATS) as Cat[]).map(c => <option key={c} value={c}>{c === 'other' ? 'Misc / Other' : CATS[c].label}</option>)}
-                    </select>
+                  <td className="w-28 min-w-0 px-0 py-1">
+                    <SelectMenu
+                      compact
+                      disabled={readOnly}
+                      className="w-full min-w-0"
+                      label={`Expense type for ${x.label || 'new expense'}`}
+                      value={x.category}
+                      options={(Object.keys(CATS) as Cat[]).map(category => ({ value: category, label: category === 'other' ? 'Misc / Other' : CATS[category].label }))}
+                      onChange={category => set(x.id, { category: category as Cat })}
+                    />
                   </td>
-                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" value={fromBaseCurrency(x.est).toFixed(2)} onChange={e => set(x.id, { est: toBaseCurrency(r2(e.target.value)) })} /></td>
-                  <td className="px-0 py-1 w-32"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" placeholder="—" value={x.actual == null ? '' : fromBaseCurrency(x.actual).toFixed(2)} onChange={e => set(x.id, { actual: e.target.value === '' ? undefined : toBaseCurrency(r2(e.target.value)) })} /></td>
+                  <td className="w-28 px-0 py-1"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" value={fromBaseCurrency(x.est).toFixed(2)} onChange={e => set(x.id, { est: toBaseCurrency(r2(e.target.value)) })} /></td>
+                  <td className="w-28 px-0 py-1"><input className={`${cell} text-right`} readOnly={readOnly} type="number" min={0} step="0.01" placeholder="—" value={x.actual == null ? '' : fromBaseCurrency(x.actual).toFixed(2)} onChange={e => set(x.id, { actual: e.target.value === '' ? undefined : toBaseCurrency(r2(e.target.value)) })} /></td>
                   <td className="text-center">{!readOnly && <button type="button" aria-label="Remove" className="rounded px-2 py-1 text-clay hover:bg-clay/10" onClick={() => onChange(items.filter(i => i.id !== x.id))}>✕</button>}</td>
                 </tr>
               ))}

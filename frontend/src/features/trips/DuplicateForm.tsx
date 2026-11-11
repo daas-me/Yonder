@@ -20,7 +20,7 @@ export default function DuplicateForm({ trip, onSave, onClose }: { trip: Trip; o
         })
       }}>
         <Field label="New trip name"><input className="input" value={name} onChange={e => setName(e.target.value)} /></Field>
-        <Field label="New start date"><input className="input" type="date" value={start} onChange={e => setStart(e.target.value)} /></Field>
+        <Field label="New start date"><input className="input" type="date" lang="en-US" value={start} onChange={e => setStart(e.target.value)} /></Field>
         {start && <p className="text-sm text-ink/60">Ends {fmt(addDays(start, len), { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })} · {len + 1} days</p>}
         <div className="flex justify-end gap-2"><button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary">Create copy</button></div>
       </form>
