@@ -38,6 +38,8 @@ export class ApiError extends Error {
 }
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
+let cachedCsrfToken: string | undefined
+let csrfTokenRequest: Promise<string> | undefined
 
 export function assetUrl(url: string) {
   if (/^(?:data:|https?:)/i.test(url) || url.startsWith('/sample-images/') || url.startsWith('/covers/') || baseUrl.startsWith('/')) return url
@@ -52,10 +54,17 @@ export function fetchAsset(url: string) {
 }
 
 async function csrfToken() {
-  const response = await fetch(`${baseUrl}/auth/csrf`, { credentials: 'include' })
-  if (!response.ok) throw new ApiError(response.status, 'Could not initialize a secure API session')
-  const result = (await response.json()) as { token: string }
-  return result.token
+  if (cachedCsrfToken) return cachedCsrfToken
+  if (!csrfTokenRequest) {
+    csrfTokenRequest = (async () => {
+      const response = await fetch(`${baseUrl}/auth/csrf`, { credentials: 'include' })
+      if (!response.ok) throw new ApiError(response.status, 'Could not initialize a secure API session')
+      const result = (await response.json()) as { token: string }
+      cachedCsrfToken = result.token
+      return result.token
+    })().finally(() => { csrfTokenRequest = undefined })
+  }
+  return csrfTokenRequest
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -66,6 +75,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const response = await fetch(`${baseUrl}${path}`, { ...init, method, headers, credentials: 'include' })
   if (!response.ok) {
+    if (response.status === 403) cachedCsrfToken = undefined
     let failure: Partial<ApiFailure> = {}
     try {
       failure = (await response.json()) as ApiFailure
