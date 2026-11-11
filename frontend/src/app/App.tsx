@@ -330,7 +330,7 @@ export default function App() {
   )
   if (shared) return (
     <div className="min-h-screen">
-      <header className="no-print sticky top-0 z-40 border-b border-line bg-ink text-sand">
+      <header className="no-print sticky top-0 z-40 border-b border-line bg-card text-ink dark:bg-ink dark:text-sand">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <Logo />
           <div className="flex items-center gap-2">{themeBtn}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, geocode } from '../../services'
 import { type Activity, CATS, PlusIcon, type Trip } from '../../shared'
+import { SelectMenu } from '../account/controls'
 import { fromWikivoyage, type Kind, KINDS, type Place } from './sources'
 
 const cache = new Map<string, { places: Place[]; page?: string; errors: string[] }>()
@@ -78,9 +79,11 @@ export default function Discover({ trip, fresh, added, onAdd }: { trip: Trip; fr
       <div className="mb-4 flex flex-wrap gap-2">{chip('all', 'All')}{(Object.keys(KINDS) as Kind[]).map(k => chip(k, KINDS[k].label))}</div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input className="input max-w-xs" placeholder="Search names, amenities, cuisine…" value={q} onChange={e => setQ(e.target.value)} />
-        <select className="input w-auto" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-          <option value="relevance">Most detailed first</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option>
-        </select>
+        <SelectMenu label="Sort places" value={sort} onChange={value => setSort(value as typeof sort)} options={[
+          { value: 'relevance', label: 'Most detailed first' },
+          { value: 'low', label: 'Price: low to high' },
+          { value: 'high', label: 'Price: high to low' },
+        ]} />
         <label className="flex items-center gap-2 text-sm text-ink/70"><input type="checkbox" className="accent-[#17675b]" checked={withPrice} onChange={e => setWithPrice(e.target.checked)} />With price only</label>
       </div>
 

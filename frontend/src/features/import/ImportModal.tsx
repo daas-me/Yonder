@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { DEFAULT_CATEGORY_SHARE_MODES, type Activity, addDays, type Cat, catOf, CATS, type Check, type Extra, display, Field, FieldLabel, fmt, fmtTime, fromBaseCurrency, isoOf, Modal, php, sortActs, THEMES, toBaseCurrency, type Trip, uid } from '../../shared'
+import { DEFAULT_CATEGORY_SHARE_MODES, type Activity, addDays, type Cat, CATS, type Check, type Extra, display, Field, FieldLabel, fmt, fmtTime, fromBaseCurrency, isoOf, Modal, php, sortActs, THEMES, toBaseCurrency, type Trip, uid } from '../../shared'
 import { ExtrasEditor } from '../budget'
+import { SelectMenu } from '../account/controls'
 import { extractText } from './extractText'
 import { type Draft, type Parsed, parseItinerary, SAMPLE } from './parser'
 
@@ -81,7 +82,7 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Trip name"><input className="input" value={meta.name} onChange={e => setMeta({ ...meta, name: e.target.value })} /></Field>
             <Field label="Destination"><input className="input" value={meta.destination} onChange={e => setMeta({ ...meta, destination: e.target.value })} /></Field>
-            {hasDayOnly && <Field label="Day 1 starts on"><input className="input" type="date" value={meta.start} onChange={e => setMeta({ ...meta, start: e.target.value })} /></Field>}
+            {hasDayOnly && <Field label="Day 1 starts on"><input className="input" type="date" lang="en-US" value={meta.start} onChange={e => setMeta({ ...meta, start: e.target.value })} /></Field>}
           </div>
           <details className="rounded-xl p-3 ring-1 ring-line" open>
             <summary className="cursor-pointer text-sm font-semibold text-ink">Budget & look</summary>
@@ -104,9 +105,13 @@ export default function ImportModal({ onClose, onCreate }: { onClose: () => void
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="font-semibold text-pine">{fmt(a.date, { weekday: 'short', month: 'short', day: 'numeric' })} · {fmtTime(a.time)}</span>
-                        <select className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white" style={{ background: CATS[catOf(a as unknown as Activity)].color }} value={a.category} onChange={e => upd(a.id, { category: e.target.value as Cat })}>
-                          {(Object.keys(CATS) as Cat[]).map(c => <option key={c} value={c} className="bg-card text-ink">{CATS[c].label}</option>)}
-                        </select>
+                        <SelectMenu
+                          compact
+                          label={`Activity category for ${a.title}`}
+                          value={a.category}
+                          options={(Object.keys(CATS) as Cat[]).map(category => ({ value: category, label: CATS[category].label }))}
+                          onChange={category => upd(a.id, { category: category as Cat })}
+                        />
                       </div>
                       <input className="w-full bg-transparent font-semibold outline-none" value={a.title} onChange={e => upd(a.id, { title: e.target.value })} />
                       <div className="flex gap-2">

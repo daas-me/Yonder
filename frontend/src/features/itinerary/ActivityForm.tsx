@@ -65,7 +65,7 @@ export function ActivityForm({ trip, act, initial, onSave, onClose }: { trip: Tr
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date" error={err.date}><input className="input" type="date" min={trip.start} max={trip.end} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
+          <Field label="Date" error={err.date}><input className="input" type="date" lang="en-US" min={trip.start} max={trip.end} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
           <Field label="Start time" error={err.time}><input className="input" type="time" value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></Field>
         </div>
         <Field label="Location" error={err.location}><input className="input" value={f.location} onChange={e => setF({ ...f, location: e.target.value })} /></Field>

@@ -75,12 +75,14 @@ export function Switch({ on, onChange, label, disabled }: { on: boolean; onChang
   )
 }
 
-export function SelectMenu({ value, options, onChange, label, className = '' }: {
+export function SelectMenu({ value, options, onChange, label, className = '', compact = false, disabled = false }: {
   value: string
   options: { value: string; label: string }[]
   onChange: (value: string) => void
   label: string
   className?: string
+  compact?: boolean
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>()
@@ -142,8 +144,9 @@ export function SelectMenu({ value, options, onChange, label, className = '' }: 
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => setOpen(current => !current)}
-        className="flex h-10 min-w-36 items-center gap-3 rounded-xl border border-line2 bg-[#f7f8f6] px-3 text-left text-sm text-ink shadow-sm transition hover:border-pine/35 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine dark:bg-[#18211f] dark:hover:bg-[#202c29]"
+        className={`flex items-center border border-line2 bg-[#f7f8f6] text-left text-ink shadow-sm transition hover:border-pine/35 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#18211f] dark:hover:bg-[#202c29] ${compact ? 'h-9 min-w-0 w-full gap-2 rounded-lg px-2 text-xs' : 'h-10 min-w-36 gap-3 rounded-xl px-3 text-sm'}`}
       >
         <span className="min-w-0 flex-1 truncate">{selected?.label ?? value}</span>
         <svg aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink/45 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 10 5 5 5-5" /></svg>
