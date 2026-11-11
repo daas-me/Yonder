@@ -77,6 +77,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
                 .securityContext(context -> context.securityContextRepository(contextRepository))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .requestCache(requestCache -> requestCache.disable())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(apiSecurityErrorHandler)
                         .accessDeniedHandler(apiSecurityErrorHandler))

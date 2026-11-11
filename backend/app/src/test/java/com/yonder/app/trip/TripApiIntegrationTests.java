@@ -271,10 +271,13 @@ class TripApiIntegrationTests {
 
     @Test
     void unauthenticatedRequestsReturnStructuredApiErrors() throws Exception {
-        mvc.perform(get("/api/trips"))
+        MvcResult result = mvc.perform(get("/api/trips"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.message").value("Authentication is required"));
+                .andExpect(jsonPath("$.message").value("Authentication is required"))
+                .andReturn();
+
+        org.junit.jupiter.api.Assertions.assertNull(result.getResponse().getCookie("SESSION"));
     }
 
     @Test
